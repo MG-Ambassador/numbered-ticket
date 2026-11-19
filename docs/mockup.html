@@ -1,0 +1,774 @@
+<title>OC相談 整理券モックアップ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap">
+<style>
+/* Layout: 紙の地に、来場者とスタッフ二台のスマートフォンを並べ、一つの状態を共有して動かす。電話の中は Shirokane OC相談（春・菜の花）の色で固定し、外側だけテーマに合わせる */
+:root {
+  --bg: #f7f5f0; --surface: #efebe3; --fg: #232121; --fg-soft: #5e584e; --rule: #ddd6c9; --frame: #232121; --accent: #e6e67a; --ring: #232121;
+  --p-paper: #f7f5f0; --p-raised: #fdfcf9; --p-sunk: #efebe3; --p-rule: #ddd6c9; --p-rule-strong: #8f877a;
+  --p-ink: #232121; --p-ink-soft: #5e584e; --p-ink-faint: #8f877a; --p-ink-hover: #3d3a37;
+  --p-light: #e6e67a; --p-wash: #f4f4cf; --p-gray: #9c9d9c; --p-on-ink-soft: #d9d4ca;
+  --p-success: #2f6b4a; --p-success-wash: #e4efe7; --p-warning: #8a5a00; --p-warning-wash: #f6ecd6;
+  --p-danger: #a8322a; --p-danger-wash: #f6e3e0; --p-info: #2f5a8a; --p-info-wash: #e3eaf3; --p-scrim: rgba(36, 33, 28, 0.4);
+  --font: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #1b1a19; --surface: #262422; --fg: #f3efe7; --fg-soft: #b9b2a6; --rule: #3a3734; --frame: #000000; --ring: #e6e67a; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #1b1a19; --surface: #262422; --fg: #f3efe7; --fg-soft: #b9b2a6; --rule: #3a3734; --frame: #000000; --ring: #e6e67a; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.7; letter-spacing: 0.02em;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 56px;
+}
+button, input, textarea, select { font-family: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
+.top { display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-end; justify-content: space-between; }
+.top-text { display: flex; flex-direction: column; gap: 8px; max-width: 40em; min-width: 0; }
+.eyebrow-out { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.16em; color: var(--fg-soft); }
+h1 { margin: 0; font-size: clamp(26px, 4.4vw, 36px); line-height: 1.35; font-weight: 300; letter-spacing: 0.04em; text-wrap: balance; }
+h1 mark { background: none; color: inherit; box-shadow: inset 0 -0.3em 0 color-mix(in srgb, var(--accent) 80%, transparent); }
+.top-text p { margin: 0; color: var(--fg-soft); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ctl { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 8px 6px 16px; border: 1px solid var(--rule); border-radius: 999px; background: var(--surface); font-size: 13px; }
+.ctl-btn { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--fg-soft); background: transparent; color: var(--fg); font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.ctl-btn:hover { background: var(--surface); }
+.hint { font-size: 12px; color: var(--fg-soft); }
+.hint b { color: var(--fg); font-weight: 500; letter-spacing: 0.08em; }
+
+.view-tabs { display: none; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--rule); border-radius: 999px; }
+.view-tabs button { flex: 1; height: 44px; border: 0; border-radius: 999px; background: transparent; color: var(--fg-soft); font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.view-tabs button[aria-selected="true"] { background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+.dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 0 1px var(--fg); }
+
+.stage { display: flex; flex-wrap: wrap; justify-content: center; gap: 32px 48px; }
+.device { width: 100%; max-width: 402px; display: flex; flex-direction: column; gap: 12px; }
+.device-label { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 500; }
+.device-label small { font-size: 12px; font-weight: 400; color: var(--fg-soft); }
+@media (max-width: 879px) {
+  .view-tabs { display: flex; }
+  .device:not(.on) { display: none; }
+}
+
+.tries { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px 32px; padding: 0; margin: 0; list-style: none; counter-reset: t; }
+.tries li { display: flex; gap: 12px; font-size: 14px; color: var(--fg-soft); }
+.tries li b { color: var(--fg); font-weight: 500; }
+.tries-h { margin: 0 0 12px; font-size: 15px; font-weight: 500; }
+footer { font-size: 12px; color: var(--fg-soft); border-top: 1px solid var(--rule); padding-top: 16px; }
+.ctl-btn:focus-visible, .view-tabs button:focus-visible, .sw:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* ---------- 電話の中（Shirokane OC相談） ---------- */
+.phone { position: relative; width: 100%; height: 780px; border: 6px solid var(--frame); border-radius: 40px; overflow: hidden; background: var(--p-paper); color: var(--p-ink); font-size: 15px; line-height: 26px; letter-spacing: 0.02em; box-shadow: 0 1px 0 rgba(36,33,28,.06), 0 24px 48px -24px rgba(36,33,28,.35); isolation: isolate; }
+@media (max-width: 479px) { .phone { height: 720px; border-width: 4px; border-radius: 32px; } }
+.phone :focus-visible { outline: 2px solid var(--p-ink); outline-offset: 2px; }
+.phone .call :focus-visible { outline-color: var(--p-light); }
+.scroll { position: absolute; inset: 0; overflow-y: auto; padding: 20px 16px 28px; display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.between { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.eyebrow { font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.16em; color: var(--p-ink-soft); }
+.mg { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+.t1 { margin: 0; font-size: 26px; line-height: 38px; font-weight: 500; letter-spacing: 0.04em; }
+.t2 { margin: 0; font-size: 20px; line-height: 30px; font-weight: 500; letter-spacing: 0.03em; }
+.hl { font-size: 17px; line-height: 26px; font-weight: 500; }
+.small { font-size: 13px; line-height: 22px; color: var(--p-ink-soft); }
+.label { font-size: 12px; line-height: 18px; font-weight: 500; letter-spacing: 0.06em; }
+.mark { box-shadow: inset 0 -10px 0 var(--p-light); }
+.grow { flex-grow: 1; }
+.p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+
+.btn { height: 52px; width: 100%; border-radius: 999px; border: 0; background: var(--p-ink); color: var(--p-raised); font-size: 15px; font-weight: 500; letter-spacing: 0.06em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 120ms; }
+.btn:hover { background: var(--p-ink-hover); }
+.btn:active { box-shadow: inset 0 -3px 0 var(--p-light); }
+.btn:disabled { background: var(--p-sunk); color: var(--p-ink-faint); cursor: not-allowed; box-shadow: none; }
+.btn2 { height: 48px; padding: 0 20px; border-radius: 999px; border: 1px solid var(--p-rule-strong); background: var(--p-raised); color: var(--p-ink); font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.btn2:hover { background: var(--p-sunk); }
+.btn2:disabled { color: var(--p-ink-faint); cursor: not-allowed; background: var(--p-raised); }
+.btn2.danger { border-color: var(--p-danger); color: var(--p-danger); }
+.quiet { min-height: 44px; border: 0; background: transparent; color: var(--p-ink-soft); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.quiet:hover { color: var(--p-ink); }
+.icon-btn { flex-shrink: 0; width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--p-rule-strong); background: var(--p-raised); color: var(--p-ink); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.icon-btn:disabled { color: var(--p-ink-faint); border-color: var(--p-rule); cursor: not-allowed; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { height: 36px; margin-block: 4px; padding: 0 14px; border: 1px solid var(--p-rule-strong); border-radius: 999px; background: var(--p-raised); color: var(--p-ink); font-size: 12px; font-weight: 500; letter-spacing: 0.06em; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.chips .chip { margin-block: 0; }
+.chip[aria-pressed="true"] { background: var(--p-wash); border-color: var(--p-ink); font-weight: 700; }
+.chip:disabled { color: var(--p-ink-faint); border-color: var(--p-rule); cursor: not-allowed; }
+
+.st { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; font-size: 11px; line-height: 18px; font-weight: 500; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.st-ready { background: var(--p-success-wash); color: var(--p-success); }
+.st-accepting, .st-waiting { background: var(--p-wash); box-shadow: inset 0 0 0 1px var(--p-ink); }
+.st-paused, .st-skipped { background: var(--p-warning-wash); color: var(--p-warning); }
+.st-preparing, .st-progress, .st-void { background: var(--p-sunk); color: var(--p-ink-soft); }
+.st-calling { background: var(--p-ink); color: var(--p-raised); }
+.st-done { background: var(--p-success-wash); color: var(--p-success); }
+
+.card { background: var(--p-raised); border: 1px solid var(--p-rule); border-radius: 24px 24px 2px 2px; box-shadow: 0 1px 0 rgba(36,33,28,.06), 0 2px 6px rgba(36,33,28,.05); }
+.card.hero { box-shadow: 0 1px 0 rgba(36,33,28,.06), 0 10px 24px -12px rgba(36,33,28,.22); }
+.tile { width: 100%; text-align: left; color: var(--p-ink); display: flex; gap: 16px; padding: 20px; cursor: pointer; transition: box-shadow 240ms; }
+.tile:hover:not(:disabled) { box-shadow: 0 1px 0 rgba(36,33,28,.06), 0 10px 24px -12px rgba(36,33,28,.22); }
+.tile:disabled { cursor: default; }
+.tile-body { flex-grow: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.win { flex-shrink: 0; width: 64px; height: 76px; border-radius: 9999px 9999px 2px 2px; background: var(--p-light); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; font-size: 22px; font-weight: 500; color: var(--p-ink); }
+.win.off { background: var(--p-sunk); color: var(--p-ink-soft); }
+.tags { font-size: 12px; color: var(--p-ink-soft); letter-spacing: 0.04em; }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--p-ink-soft); }
+.stats span { display: flex; align-items: center; gap: 4px; }
+.stats b { color: var(--p-ink); font-weight: 500; }
+
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--p-sunk); border-radius: 999px; }
+.seg button { height: 52px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--p-ink-soft); font-size: 15px; font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 20px; }
+.seg button span { font-size: 10px; line-height: 14px; letter-spacing: 0.08em; }
+.seg button[aria-selected="true"] { background: var(--p-raised); border-color: var(--p-ink); color: var(--p-ink); font-weight: 700; }
+
+.notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 2px; font-size: 13px; line-height: 22px; color: var(--p-ink); }
+.notice svg { flex-shrink: 0; margin-top: 2px; }
+.n-info { background: var(--p-info-wash); } .n-info svg { color: var(--p-info); }
+.n-warn { background: var(--p-warning-wash); } .n-warn svg { color: var(--p-warning); }
+.n-danger { background: var(--p-danger-wash); } .n-danger svg { color: var(--p-danger); }
+.n-ok { background: var(--p-success-wash); } .n-ok svg { color: var(--p-success); }
+.notice .x { margin-left: auto; margin-top: -10px; margin-right: -8px; width: 40px; height: 40px; border: 0; background: transparent; color: var(--p-ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.band { width: 100%; min-height: 48px; padding: 0 16px; border: 1px solid var(--p-ink); border-radius: 2px; background: var(--p-wash); color: var(--p-ink); font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; }
+
+.field { display: flex; flex-direction: column; gap: 8px; }
+.code-in { width: 100%; height: 64px; padding: 0 16px; border: 1px solid var(--p-rule-strong); border-radius: 2px; background: var(--p-raised); color: var(--p-ink); font-size: 32px; font-weight: 500; letter-spacing: 0.12em; text-align: center; font-variant-numeric: tabular-nums; }
+.code-in[aria-invalid="true"] { border-color: var(--p-danger); }
+.code-in::placeholder { color: var(--p-ink-faint); }
+.ta { width: 100%; padding: 12px; border: 1px solid var(--p-rule-strong); border-radius: 2px; background: var(--p-raised); color: var(--p-ink); font-size: 15px; line-height: 24px; resize: none; }
+fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 4px; }
+legend { padding: 0; margin-bottom: 4px; }
+
+.list { display: flex; flex-direction: column; gap: 12px; }
+.sw { flex-shrink: 0; width: 52px; height: 32px; border-radius: 999px; border: 1px solid var(--p-rule-strong); background: var(--p-sunk); padding: 3px; display: flex; justify-content: flex-start; cursor: pointer; }
+.sw span { width: 24px; height: 24px; border-radius: 999px; background: var(--p-raised); border: 1px solid var(--p-rule-strong); transition: transform 120ms; }
+.sw[aria-checked="true"] { background: var(--p-ink); border-color: var(--p-ink); justify-content: flex-end; }
+.sw[aria-checked="true"] span { border-color: var(--p-ink); }
+.ctl .sw { border-color: var(--fg-soft); background: var(--bg); }
+.ctl .sw span { background: var(--fg-soft); border-color: var(--fg-soft); }
+.ctl .sw[aria-checked="true"] { background: var(--fg); border-color: var(--fg); }
+.ctl .sw[aria-checked="true"] span { background: var(--bg); border-color: var(--bg); }
+.panel { background: var(--p-raised); border: 1px solid var(--p-rule); border-radius: 2px; display: flex; flex-direction: column; }
+.panel > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 16px; min-height: 56px; }
+.panel > hr { margin: 0; border: 0; border-top: 1px solid var(--p-rule); }
+
+/* 整理券 */
+.tk-top { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.tk-no { display: flex; align-items: baseline; gap: 6px; }
+.tk-no b { font-size: 60px; line-height: 64px; font-weight: 500; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.tear { position: relative; border-top: 2px dashed var(--p-rule); margin: 0 16px; }
+.tear::before, .tear::after { content: ""; position: absolute; top: -11px; width: 20px; height: 20px; border-radius: 999px; background: var(--p-paper); }
+.tear::before { left: -27px; box-shadow: inset -1px 0 0 var(--p-rule); }
+.tear::after { right: -27px; box-shadow: inset 1px 0 0 var(--p-rule); }
+.tk-bottom { padding: 20px 24px 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.big { font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.seal { width: 64px; height: 64px; flex-shrink: 0; border: 2px solid var(--p-ink); border-radius: 999px; display: flex; align-items: center; justify-content: center; transform: rotate(-8deg); font-size: 15px; font-weight: 700; letter-spacing: 0.1em; color: var(--p-ink); }
+.seal.stamp { animation: stamp 420ms cubic-bezier(.2,.8,.2,1); }
+@keyframes stamp { from { transform: scale(1.7) rotate(-8deg); opacity: 0; } to { transform: scale(1) rotate(-8deg); opacity: 1; } }
+.door { align-items: center; text-align: center; padding-top: 56px; gap: 20px; }
+.ring { width: 64px; height: 64px; border: 1px solid var(--p-ink); border-radius: 999px; display: flex; align-items: center; justify-content: center; font-weight: 700; letter-spacing: 0.06em; }
+.display { margin: 0; font-size: 30px; line-height: 44px; font-weight: 300; letter-spacing: 0.04em; }
+.dfo { font-size: 12px; letter-spacing: 0.2em; color: var(--p-ink-soft); }
+
+/* シート・確認 */
+.scrim { position: absolute; inset: 0; z-index: 5; background: var(--p-scrim); display: flex; align-items: flex-end; }
+.sheet { width: 100%; max-height: 94%; overflow-y: auto; background: var(--p-raised); border-radius: 32px 32px 0 0; box-shadow: 0 1px 0 rgba(36,33,28,.08), 0 24px 48px -20px rgba(36,33,28,.32); padding: 12px 24px 28px; display: flex; flex-direction: column; gap: 18px; animation: up 240ms ease-out; }
+.grip { align-self: center; width: 40px; height: 4px; border-radius: 999px; background: var(--p-rule); }
+@keyframes up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+.divider { height: 1px; background: var(--p-rule); }
+
+/* 呼出 */
+.call { position: absolute; inset: 0; z-index: 10; background: var(--p-ink); color: var(--p-raised); padding: 24px 16px 28px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; overflow-y: auto; }
+.call .eyebrow { color: var(--p-light); display: flex; align-items: center; gap: 6px; }
+.call-win { width: 220px; height: 250px; flex-shrink: 0; border-radius: 9999px 9999px 2px 2px; background: var(--p-light); color: var(--p-ink); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 32px; gap: 4px; }
+.call-win b { font-size: 60px; line-height: 64px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.btn-on-ink { height: 52px; width: 100%; border: 0; border-radius: 999px; background: var(--p-raised); color: var(--p-ink); font-size: 15px; font-weight: 500; letter-spacing: 0.06em; cursor: pointer; }
+.btn-on-ink:hover { background: var(--p-sunk); }
+.on-ink-soft { color: var(--p-on-ink-soft); font-size: 12px; line-height: 20px; margin: 0; }
+
+/* スタッフ */
+.staff { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.staff .scroll { position: static; flex: 1; min-height: 0; }
+.sel { height: 44px; padding: 0 12px; border: 1px solid var(--p-rule-strong); border-radius: 2px; background: var(--p-raised); color: var(--p-ink); font-size: 15px; font-weight: 500; width: 100%; }
+.qrow { width: 100%; text-align: left; color: var(--p-ink); background: var(--p-raised); border: 1px solid var(--p-rule); border-radius: 2px; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+.qrow[aria-expanded="true"] { background: var(--p-wash); border-color: var(--p-ink); }
+.qrow.current { border-color: var(--p-ink); box-shadow: inset 4px 0 0 var(--p-ink); cursor: default; }
+.memo { background: var(--p-raised); border: 1px solid var(--p-rule); border-radius: 2px; padding: 8px 12px; font-size: 13px; line-height: 22px; }
+.mine { font-size: 10px; font-weight: 500; letter-spacing: 0.06em; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--p-ink); background: var(--p-light); color: var(--p-ink); }
+.skiprow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 6px 16px; background: var(--p-warning-wash); border-radius: 2px; font-size: 13px; color: var(--p-ink); }
+.bar { background: var(--p-raised); border-top: 1px solid var(--p-rule); box-shadow: 0 -2px 6px rgba(36,33,28,.05); padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.timer { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.warn-text { color: var(--p-warning); font-weight: 500; }
+.undo { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 0 8px 0 16px; border-radius: 2px; background: var(--p-ink); color: var(--p-raised); font-size: 14px; }
+.undo button { min-height: 44px; padding: 0 14px; border: 1px solid var(--p-gray); border-radius: 999px; background: transparent; color: var(--p-raised); font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.undo i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--p-light); }
+.claim { margin: auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .seal.stamp, .sheet { animation: none; }
+  .tile, .btn, .sw span { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-text">
+      <p class="eyebrow-out">OPEN CAMPUS · 個別相談 整理券システム</p>
+      <h1>行列に並ばず、<mark>順番を待つ</mark>。</h1>
+      <p>来場者とスタッフ、二台のスマートフォンをつないだ操作できるモックアップです。左で整理券を受け取り、右のスタッフの画面で呼び出すと、左の画面が切り替わります。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl"><span id="auto-label">列を自動で進める</span><button class="sw" role="switch" id="demo-auto" aria-labelledby="auto-label" aria-checked="true" data-act="auto"><span></span></button></div>
+      <button class="ctl-btn" data-act="reset" id="demo-reset"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>最初からやり直す</button>
+      <span class="hint">見本の入場コード <b>038-4712</b></span>
+    </div>
+  </header>
+
+  <div class="view-tabs" role="tablist" aria-label="表示する画面" id="view-tabs"></div>
+
+  <div class="stage">
+    <section class="device on" id="dev-visitor" aria-labelledby="lbl-visitor">
+      <h2 class="device-label" id="lbl-visitor">来場者のスマートフォン <small>高校生・保護者</small></h2>
+      <div class="phone" id="visitor"></div>
+    </section>
+    <section class="device" id="dev-staff" aria-labelledby="lbl-staff">
+      <h2 class="device-label" id="lbl-staff">スタッフのスマートフォン <small>相談員（在学生・教員）</small></h2>
+      <div class="phone" id="staff"></div>
+    </section>
+  </div>
+
+  <section aria-labelledby="tries-h">
+    <h2 class="tries-h" id="tries-h">試せること</h2>
+    <ul class="tries">
+      <li><span>・</span><span><b>入場</b>：038-4712 を入れて入場。違う数字や「QRコードから入ったことにする」も試せます。</span></li>
+      <li><span>・</span><span><b>発券</b>：テーマで絞り込み、相談員を選んで、学年・テーマ・聞きたいことを入れて整理券を受け取ります。</span></li>
+      <li><span>・</span><span><b>待つ</b>：「列を自動で進める」がオンなら、前の組が少しずつ終わります。オフにすると、スタッフのボタンだけで進みます。</span></li>
+      <li><span>・</span><span><b>呼出</b>：スタッフの「次の方を呼ぶ」で、来場者の画面が全面のお呼び出しに切り替わります。</span></li>
+      <li><span>・</span><span><b>不在と復帰</b>：スタッフの「不在」で来場者に残り時間の案内が出ます。「復帰」で列の先頭に戻ります。</span></li>
+      <li><span>・</span><span><b>受付の制御</b>：上限を下げたり受付を止めたりすると、来場者の一覧の表示がすぐ変わります。</span></li>
+    </ul>
+  </section>
+
+  <footer>デザイン：Shirokane OC相談（春・菜の花）。サーバにはつながっておらず、このページの中だけで動く見本です。開催日・入場コード・相談員の名前と自己紹介・ブースの場所はすべて見本のデータです。管理者の画面は含みません。</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var ENTRY = "0384712";
+  var GRADES = ["高校3年", "高校2年", "高校1年", "保護者", "その他"];
+  var THEMES = ["入試・選抜方法", "学部・学科の学び", "学生生活", "就職・資格", "費用・奨学金", "その他"];
+  var BOOTHS = ["B-1", "B-2", "B-3", "B-4", "B-5", "B-6", "B-7"];
+  var FILTERS = ["留学", "奨学金", "一人暮らし", "部活・サークル", "入試の体験", "総合型選抜"];
+  var MEMOS = ["奨学金の申請はいつごろから準備すればよいですか。", "一人暮らしの家賃の相場を知りたいです。", "", "英語の外部試験のスコアはどのくらい必要ですか。", "部活と勉強の両立について聞きたいです。", "", "指定校推薦の校内選考について知りたいです。"];
+  var TICK = 3000, SKIP_LIMIT = 10 * 60 * 1000, UNDO_MS = 5000;
+  var BASE_TITLE = document.title;
+  var audio = null, wakeLock = null;
+
+  var ICON = {
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    phone: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    pause: '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>',
+    minus: '<path d="M5 12h14"/>',
+    plus: '<path d="M5 12h14M12 5v14"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    undo: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+    vol: '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+    chev: '<path d="m9 18 6-6-6-6"/>',
+    alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>'
+  };
+  function ic(n, s) { s = s || 18; return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + "</svg>"; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fmt(ms) { ms = Math.max(0, ms); var s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function hhmm(t) { var d = new Date(t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function fmtCode(d) { return d.length > 3 ? d.slice(0, 3) + "-" + d.slice(3) : d; }
+  function up5(m) { return Math.ceil(m / 5) * 5; }
+
+  /* ---------- 状態 ---------- */
+  function initial() {
+    var now = Date.now();
+    var slots = [
+      { id: "A-1", name: "さくら", dept: "心理学部 2年", tags: ["一人暮らし", "部活・サークル"], bio: "地方から進学して、寮で暮らしています。生活の始め方や部活のことを聞いてください。", preparing: true },
+      { id: "A-2", name: "ゆい", dept: "国際学部 4年", tags: ["留学", "総合型選抜"], bio: "総合型選抜で入学し、3年の秋から1年間カナダに留学しました。準備の進め方をお話しできます。" },
+      { id: "A-3", name: "ひなた", dept: "経済学部 2年", tags: ["一人暮らし", "部活・サークル"], bio: "一人暮らしをしながら部活を続けています。両立のコツや生活費のことを聞いてください。" },
+      { id: "A-4", name: "けんと", dept: "社会学部 3年", tags: ["入試の体験", "部活・サークル"], bio: "一般選抜で入学しました。受験期の勉強の進め方や、入学してからの部活のことをお話しします。" },
+      { id: "A-5", name: "そうた", dept: "法学部 3年", tags: ["留学", "奨学金"], bio: "2年の夏に短期留学をしました。費用の準備や奨学金の探し方など、気軽に聞いてください。" },
+      { id: "A-6", name: "みお", dept: "文学部 英文学科 2年", tags: ["入試の体験"], bio: "英語の外部試験を使った入試で入学しました。出願までの準備をお話しできます。", limit: 3 },
+      { id: "A-7", name: "はると", dept: "社会学部 3年", tags: ["奨学金", "一人暮らし"], bio: "給付型の奨学金を受けながら一人暮らしをしています。", paused: true }
+    ].map(function (s) { return { id: s.id, type: "student", name: s.name, dept: s.dept, tags: s.tags, bio: s.bio, limit: s.limit || 5, paused: !!s.paused, preparing: !!s.preparing }; });
+    var st = {
+      slots: slots, fac: { id: "F", type: "faculty", name: "教員相談", limit: 40, paused: false },
+      tickets: [], nextNo: 104, order: 0,
+      stage: "gate", code: "", codeErr: "", attempts: 0, lockUntil: 0, checking: false,
+      tab: "student", filters: [], sheet: null, form: { grade: null, themes: [], note: "" },
+      my: null, confirmCancel: false, callAck: false, wake: false, wakeNote: "", sound: false, msg: "", lastMyStatus: null, sealUntil: 0,
+      auto: true, staffSlot: "A-5", booth: "B-6", openRow: null, pending: null, view: "visitor"
+    };
+    var seq = 0;
+    function mk(no, slotId, status, mins, booth) {
+      var i = seq++;
+      st.tickets.push({ id: "t" + no, no: no, slotId: slotId, status: status, order: ++st.order, grade: GRADES[i % 4], themes: [THEMES[i % 6], THEMES[(i + 2) % 6]].slice(0, 1 + (i % 2)), note: MEMOS[i % MEMOS.length], issuedAt: now - mins * 60000, calledAt: status !== "waiting" ? now - 4 * 60000 : 0, startedAt: status === "in_progress" ? now - 3 * 60000 : 0, booth: booth || null, t: 1, mine: false, arriving: false });
+    }
+    for (var f = 0; f < 5; f++) mk(61 + f, "F", "in_progress", 30 - f, BOOTHS[f]);
+    for (var w = 0; w < 12; w++) mk(66 + w, "F", "waiting", 24 - w * 2);
+    mk(96, "A-3", "in_progress", 16, "A-3"); mk(101, "A-3", "waiting", 5);
+    mk(97, "A-5", "in_progress", 15, "A-5"); mk(100, "A-5", "waiting", 8); mk(102, "A-5", "waiting", 4);
+    mk(98, "A-6", "in_progress", 14, "A-6"); mk(99, "A-6", "waiting", 10); mk(103, "A-6", "waiting", 3); mk(95, "A-6", "waiting", 12);
+    return st;
+  }
+  var S = initial();
+
+  function slotOf(id) { return id === "F" ? S.fac : S.slots.filter(function (s) { return s.id === id; })[0]; }
+  function waiting(id) { return S.tickets.filter(function (t) { return t.slotId === id && t.status === "waiting"; }).sort(function (a, b) { return a.order - b.order; }); }
+  function isActive(t) { return t.status === "calling" || t.status === "in_progress"; }
+  function active(id, booth) { return S.tickets.filter(function (t) { return t.slotId === id && isActive(t) && (id !== "F" || t.booth === booth); })[0] || null; }
+  function activeCount(id) { return S.tickets.filter(function (t) { return t.slotId === id && isActive(t); }).length; }
+  function skippedOf(id, booth) { return S.tickets.filter(function (t) { return t.slotId === id && t.status === "skipped" && (id !== "F" || t.booth === booth); }); }
+  function myT() { return S.my ? S.tickets.filter(function (t) { return t.id === S.my; })[0] : null; }
+  function myLive() { var m = myT(); return m && (m.status === "waiting" || isActive(m) || m.status === "skipped") ? m : null; }
+
+  function statusOf(s) {
+    if (s.type === "student" && s.preparing) return { k: "preparing", label: "準備中" };
+    var w = waiting(s.id).length;
+    if (s.paused) return { k: "paused", label: "一時停止中", reason: "担当の停止" };
+    if (w >= s.limit) return { k: "paused", label: "一時停止中", reason: "上限に到達" };
+    var free = s.type === "faculty" ? activeCount("F") < BOOTHS.length : !active(s.id);
+    if (w === 0 && free) return { k: "ready", label: "すぐご案内できます" };
+    return { k: "accepting", label: "受付中" };
+  }
+  function estMin(s, ahead) {
+    if (s.type === "faculty") { var free = BOOTHS.length - activeCount("F"); if (ahead < free) return 0; return up5(Math.ceil((ahead + 1 - free) / BOOTHS.length) * 10); }
+    var n = ahead + (active(s.id) ? 1 : 0); return up5(n * 10);
+  }
+  function estText(m) { return m <= 0 ? "まもなく" : "およそ " + m + "分"; }
+  function aheadOf(t) { return waiting(t.slotId).filter(function (x) { return x.order < t.order; }).length; }
+  function stChip(k, label, icon) { return '<span class="st st-' + k + '">' + (icon ? ic(icon, 12) : "") + esc(label) + "</span>"; }
+  function chipFor(st) { return stChip(st.k, st.label, st.k === "ready" ? "check" : st.k === "paused" ? "pause" : null); }
+  function destText(t) { if (t.slotId === "F") return "教員相談"; var s = slotOf(t.slotId); return "学生相談 " + s.id + " · " + s.name + "（" + s.dept + "）"; }
+  function boothText(t) { return t.slotId === "F" ? "教員相談 ブース " + (t.booth || "") : "学生相談 " + t.slotId; }
+
+  /* ---------- 状態の変更 ---------- */
+  function callT(t, booth) { t.status = "calling"; t.calledAt = Date.now(); t.booth = booth; t.t = 0; t.arriving = false; }
+  function startT(t) { t.status = "in_progress"; t.startedAt = Date.now(); t.t = 0; }
+  function doneT(t) { t.status = "completed"; t.note = ""; }
+  function skipT(t) { t.status = "skipped"; t.skippedAt = Date.now(); t.t = 0; }
+  function addTicket(slotId, mine, form) {
+    var i = S.nextNo;
+    var t = { id: "t" + i, no: S.nextNo++, slotId: slotId, status: "waiting", order: ++S.order, grade: form ? form.grade : GRADES[i % 5], themes: form ? form.themes.slice() : [THEMES[i % 6]], note: form ? form.note : MEMOS[i % MEMOS.length], issuedAt: Date.now(), calledAt: 0, startedAt: 0, booth: null, t: 0, mine: !!mine, arriving: false };
+    S.tickets.push(t); return t;
+  }
+  function staffUnit() { return S.staffSlot === "F" ? active("F", S.booth) : active(S.staffSlot); }
+
+  function applyPending() {
+    var p = S.pending; if (!p || Date.now() < p.until) return false;
+    var t = S.tickets.filter(function (x) { return x.id === p.id; })[0];
+    if (t && isActive(t)) { if (p.type === "finish") doneT(t); else skipT(t); }
+    S.pending = null; return true;
+  }
+  function expireSkips() {
+    var ch = false;
+    S.tickets.forEach(function (t) { if (t.status === "skipped" && Date.now() - t.skippedAt > SKIP_LIMIT) { t.status = "expired"; t.note = ""; ch = true; } });
+    return ch;
+  }
+
+  function processUnit(slotId, booth) {
+    var mineUnit = S.pending && ((slotId === "F" && S.staffSlot === "F" && booth === S.booth) || (slotId !== "F" && slotId === S.staffSlot));
+    if (mineUnit) return;
+    var cur = active(slotId, booth);
+    if (cur) {
+      cur.t = (cur.t || 0) + 1;
+      if (cur.status === "calling") {
+        if (!cur.mine && cur.t >= 1) startT(cur);
+        else if (cur.mine && cur.arriving) startT(cur);
+        else if (cur.mine && cur.t >= 12) skipT(cur);
+      } else if (cur.status === "in_progress" && cur.t >= 3) doneT(cur);
+    } else {
+      var q = waiting(slotId);
+      if (q.length) callT(q[0], slotId === "F" ? booth : slotId);
+    }
+  }
+  function autoTick() {
+    if (!S.auto) return;
+    S.slots.forEach(function (s) { if (!s.preparing) processUnit(s.id, null); });
+    BOOTHS.forEach(function (b) { processUnit("F", b); });
+    if (Math.random() < 0.3) {
+      var open = S.slots.filter(function (s) { var k = statusOf(s).k; return (k === "ready" || k === "accepting") && s.id !== (myLive() || {}).slotId; });
+      if (open.length) addTicket(open[Math.floor(Math.random() * open.length)].id);
+    }
+    if (Math.random() < 0.45 && statusOf(S.fac).k !== "paused") addTicket("F");
+    render();
+  }
+
+  /* ---------- 通知 ---------- */
+  function beep() {
+    try {
+      if (!audio) return;
+      [0, 0.32].forEach(function (d) {
+        var o = audio.createOscillator(), g = audio.createGain();
+        o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(audio.destination);
+        o.start(audio.currentTime + d); o.stop(audio.currentTime + d + 0.2);
+      });
+    } catch (e) { /* 音が出せない環境 */ }
+  }
+  function sync() {
+    var m = myT(), st = m ? m.status : null;
+    if (st !== S.lastMyStatus) {
+      if (st === "calling") { S.callAck = false; try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {} if (S.sound) beep(); }
+      if (st === "completed") S.sealUntil = Date.now() + 600;
+      S.lastMyStatus = st;
+    }
+    document.title = st === "calling" ? "【呼出】No." + m.no : BASE_TITLE;
+  }
+
+  /* ---------- 来場者の画面 ---------- */
+  function vGate() {
+    var locked = S.lockUntil > Date.now();
+    if (S.checking) return '<div class="scroll" style="justify-content:center;align-items:center;text-align:center;gap:12px"><div class="eyebrow">ENTRY</div><p class="hl p">確認しています</p><p class="small p">そのまま少しお待ちください。</p></div>';
+    var h = '<div class="scroll" data-scroll="gate" style="align-items:center;gap:22px;padding-top:36px">';
+    h += '<div style="align-self:flex-start;display:flex;flex-direction:column;gap:2px"><span style="font-size:17px;font-weight:700;letter-spacing:.08em">明治学院大学</span><span style="font-size:10px;font-weight:500;letter-spacing:.16em;color:var(--p-ink-soft)">MEIJI GAKUIN UNIVERSITY</span></div>';
+    h += '<div style="width:150px;height:180px;border-radius:9999px 9999px 2px 2px;background:var(--p-light);border:1px solid var(--p-rule);display:flex;align-items:flex-end;justify-content:center;overflow:hidden"><svg width="120" height="128" viewBox="0 0 140 150" fill="none" stroke="#232121" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M70 150V62"/><path d="M70 110c-14-6-24-18-26-32"/><path d="M70 96c14-4 24-14 28-28"/><path d="M44 150V86"/><path d="M96 150V80"/><circle cx="70" cy="52" r="7"/><circle cx="60" cy="44" r="5"/><circle cx="80" cy="44" r="5"/><circle cx="70" cy="36" r="5"/><circle cx="44" cy="78" r="5"/><circle cx="38" cy="70" r="4"/><circle cx="50" cy="70" r="4"/><circle cx="96" cy="72" r="5"/><circle cx="90" cy="64" r="4"/><circle cx="102" cy="64" r="4"/></svg></div>';
+    h += '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><span class="eyebrow">OPEN CAMPUS · 2027.3.20 SAT</span><h3 class="display">個別相談</h3><p class="small p">菜の花のころの白金で、お待ちしています。</p></div>';
+    h += '<div class="field" style="width:100%"><label class="label" for="v-code">入場コード</label>';
+    h += '<input id="v-code" class="code-in" inputmode="numeric" autocomplete="one-time-code" placeholder="000-0000" maxlength="8" value="' + esc(fmtCode(S.code)) + '"' + (S.codeErr ? ' aria-invalid="true" aria-describedby="v-code-err"' : "") + (locked ? " disabled" : "") + ">";
+    if (locked) h += '<div class="notice n-warn" id="v-code-err">' + ic("clock") + "<span>しばらく時間をおいてから、もう一度お試しください（あと " + fmt(S.lockUntil - Date.now()) + "）。</span></div>";
+    else if (S.codeErr) h += '<div class="notice n-danger" id="v-code-err" role="alert">' + ic("alert") + "<span>" + esc(S.codeErr) + "</span></div>";
+    else h += '<p class="small p">会場のポスターにある7桁をご入力ください。</p>';
+    h += "</div>";
+    h += '<div class="grow"></div><button class="btn" data-act="enter"' + (locked ? " disabled" : "") + ">入場する</button>";
+    h += '<button class="quiet" data-act="qr">QRコードから入ったことにする（見本）</button>';
+    return h + "</div>";
+  }
+
+  function vList() {
+    var m = myLive();
+    var h = '<div class="scroll" data-scroll="list">';
+    h += '<div class="between"><span class="eyebrow">個別相談 · CONSULTATION</span><span class="mg">MG</span></div>';
+    if (m) h += '<button class="band" data-act="goTicket"><span>整理券 No.' + m.no + " の順番を見る</span>" + ic("chev") + "</button>";
+    if (S.msg) h += '<div class="notice n-info" role="status">' + ic("alert") + "<span>" + esc(S.msg) + '</span><button class="x" data-act="dismiss" aria-label="お知らせを閉じる">' + ic("x", 16) + "</button></div>";
+    h += '<h3 class="t1">相談を<span class="mark">えらぶ</span></h3>';
+    var nStu = S.slots.filter(function (s) { return !s.preparing; }).length, fw = waiting("F").length;
+    h += '<div class="seg" role="tablist" aria-label="相談の種類">';
+    h += '<button role="tab" data-act="tab" data-id="student" aria-selected="' + (S.tab === "student") + '">学生相談<span>' + nStu + "名が受付中</span></button>";
+    h += '<button role="tab" data-act="tab" data-id="faculty" aria-selected="' + (S.tab === "faculty") + '">教員相談<span>待ち ' + fw + "組</span></button></div>";
+    if (S.tab === "student") {
+      h += '<div class="chips" role="group" aria-label="テーマで絞り込む（どれかに当てはまる相談員）">';
+      h += '<button class="chip" data-act="filter" data-id="" aria-pressed="' + (S.filters.length === 0) + '">すべて</button>';
+      FILTERS.forEach(function (f) { var on = S.filters.indexOf(f) >= 0; h += '<button class="chip" data-act="filter" data-id="' + esc(f) + '" aria-pressed="' + on + '">' + (on ? ic("check", 14) : "") + "#" + esc(f) + "</button>"; });
+      h += "</div>";
+      var shown = S.slots.filter(function (s) { return !S.filters.length || s.tags.some(function (t) { return S.filters.indexOf(t) >= 0; }); });
+      h += '<div class="list">' + shown.map(tile).join("") + "</div>";
+      h += '<p class="small p" style="text-align:center">' + (S.filters.length ? "選んだテーマのどれかに当てはまる相談員（" + shown.length + "名）" : "学生相談 " + S.slots.length + "枠") + "</p>";
+    } else {
+      var st = statusOf(S.fac), w = fw;
+      h += '<div class="card" style="padding:24px;display:flex;flex-direction:column;gap:14px">';
+      h += '<div class="between"><span class="eyebrow">教員相談 · FACULTY</span>' + chipFor(st) + "</div>";
+      h += '<h4 class="t2">教員による個別相談</h4>';
+      h += '<p class="p">相談員は選ばず、全学で一つの列に並びます。手の空いた教員がブースへご案内します。</p>';
+      h += '<div class="chips" aria-label="相談できる分野"><span class="st st-progress">カリキュラム</span><span class="st st-progress">入試の基準</span><span class="st st-progress">卒業後の進路</span></div>';
+      h += '<div class="stats"><span>' + ic("users", 16) + "待ち <b>" + w + "組</b></span><span>" + ic("clock", 16) + "<b>" + estText(estMin(S.fac, w)) + "</b></span><span>" + ic("pin", 16) + "ブース " + BOOTHS.length + "席</span></div>";
+      if (st.k === "paused") h += '<div class="notice n-warn">' + ic("pause") + "<span>ただいま新しい整理券の受付を一時停止しています。再開まで少しお待ちください。</span></div>";
+      h += '<button class="btn" data-act="pick" data-id="F"' + (st.k === "paused" ? " disabled" : "") + ">教員相談の整理券を受け取る</button></div>";
+    }
+    return h + "</div>";
+  }
+
+  function tile(s) {
+    var st = statusOf(s), w = waiting(s.id).length, off = st.k === "paused" || st.k === "preparing";
+    var h = '<button class="card tile" data-act="pick" data-id="' + s.id + '"' + (off ? " disabled" : "") + ">";
+    h += '<span class="win' + (off ? " off" : "") + '" aria-hidden="true">' + esc(s.name.charAt(0)) + "</span>";
+    h += '<span class="tile-body"><span class="between"><span class="eyebrow">学生相談 ' + s.id + "</span>" + chipFor(st) + "</span>";
+    h += '<span class="hl">' + esc(s.name) + " · " + esc(s.dept) + "</span>";
+    h += '<span class="tags">' + s.tags.map(function (t) { return "#" + esc(t); }).join(" ") + "</span>";
+    if (st.k === "preparing") h += '<span class="small">まもなく受付を始めます。</span>';
+    else if (st.k === "paused") h += '<span class="small">' + (st.reason === "上限に到達" ? "ただいまこの相談員の列がいっぱいです。ほかの相談員をご覧ください。" : "ただいま受付を一時停止しています。ほかの相談員をご覧ください。") + "</span>";
+    else h += '<span class="stats"><span>' + ic("users", 16) + (w ? "あと <b>" + w + "組</b>" : "待ちなし") + "</span><span>" + ic("clock", 16) + "<b>" + estText(estMin(s, w)) + "</b></span></span>";
+    return h + "</span></button>";
+  }
+
+  function vSheet() {
+    var s = slotOf(S.sheet), st = statusOf(s), w = waiting(s.id).length, f = S.form, blocked = st.k === "paused" || st.k === "preparing";
+    var h = '<div class="scrim" data-act="closeSheet" data-self="1"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" data-scroll="sheet"><div class="grip"></div>';
+    if (s.type === "faculty") {
+      h += '<div class="between"><div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">教員相談 · FACULTY</span><span class="hl" id="sheet-title">教員相談の整理券</span></div><button class="icon-btn" data-act="closeSheet" aria-label="閉じる">' + ic("x") + "</button></div>";
+      h += '<p class="p">カリキュラム、入試の基準、卒業後の進路などをご相談いただけます。順番が来たら、空いたブースをお知らせします。</p>';
+    } else {
+      h += '<div class="row" style="gap:16px"><span class="win" aria-hidden="true">' + esc(s.name.charAt(0)) + '</span><div class="grow" style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="eyebrow">学生相談 ' + s.id + ' · STUDENT</span><span class="hl" id="sheet-title">' + esc(s.name) + " · " + esc(s.dept) + '</span><span class="tags">' + s.tags.map(function (t) { return "#" + esc(t); }).join(" ") + '</span></div><button class="icon-btn" data-act="closeSheet" aria-label="閉じる">' + ic("x") + "</button></div>";
+      h += '<p class="p">' + esc(s.bio) + "</p>";
+    }
+    h += '<div class="divider"></div>';
+    h += '<fieldset><legend class="label">学年（任意）</legend><div class="chips">' + GRADES.map(function (g) { return '<button class="chip" data-act="grade" data-id="' + g + '" aria-pressed="' + (f.grade === g) + '">' + g + "</button>"; }).join("") + "</div></fieldset>";
+    h += '<fieldset><legend class="label">聞きたいテーマ（5つまで・' + f.themes.length + "つ選択中）</legend><div class=\"chips\">" + THEMES.map(function (t) { var on = f.themes.indexOf(t) >= 0; return '<button class="chip" data-act="theme" data-id="' + t + '" aria-pressed="' + on + '"' + (!on && f.themes.length >= 5 ? " disabled" : "") + ">" + (on ? ic("check", 14) : "") + t + "</button>"; }).join("") + "</div></fieldset>";
+    h += '<div class="field"><label class="label" for="v-note">聞きたいこと（任意・200字まで）</label><textarea id="v-note" class="ta" rows="3" maxlength="200" placeholder="例：交換留学の選考では、英語の成績がどのくらい必要ですか。">' + esc(f.note) + '</textarea><div class="between small" style="font-size:12px"><span>氏名・学校名・連絡先は書かないでください。</span><span id="v-note-count" class="num">' + f.note.length + " / 200</span></div></div>";
+    if (blocked) h += '<div class="notice n-warn">' + ic("pause") + "<span>" + (st.reason === "上限に到達" ? "ただいまこの列がいっぱいです。ほかの相談員をご覧いただくか、少し時間をおいてお試しください。" : "ただいま新しい整理券の受付を一時停止しています。") + "</span></div>";
+    else h += '<div class="row small">' + ic("clock", 16) + "<span>いま並ぶと、あと " + w + "組 · " + estText(estMin(s, w)) + "</span></div>";
+    h += '<button class="btn" data-act="issue"' + (blocked ? " disabled" : "") + ">整理券を受け取る</button>";
+    return h + "</div></div>";
+  }
+
+  function vTicket() {
+    var m = myT();
+    if (!m) return vList();
+    var now = Date.now(), h = '<div class="scroll" data-scroll="ticket">';
+    if (m.status === "completed") {
+      h = '<div class="scroll door" data-scroll="ticket"><span class="ring" aria-label="明治学院大学">MG</span>';
+      h += '<div class="seal' + (S.sealUntil > now ? " stamp" : "") + '" aria-label="完了の印">完了</div>';
+      h += '<h3 class="display">ご相談<br>ありがとうございました</h3><p class="p small">またキャンパスでお会いできるのを楽しみにしています。<br>春の白金で、菜の花が待っています。</p><span class="dfo">DO FOR OTHERS</span><div class="grow"></div>';
+      h += '<button class="btn" data-act="afterDone">ほかの相談を見る</button></div>';
+      return h;
+    }
+    if (m.status === "expired" || m.status === "canceled") {
+      h += '<div class="between"><span class="eyebrow">整理券 · YOUR TICKET</span><span class="mg">MG</span></div>';
+      h += '<div class="card" style="padding:24px;display:flex;flex-direction:column;gap:12px"><span class="tk-no"><span style="font-size:20px">No.</span><b style="color:var(--p-ink-faint)">' + m.no + "</b></span>" + stChip("void", "この整理券は使えなくなりました") + '<p class="p small">お越しいただける時間を過ぎました。あらためて整理券をお受け取りいただけます。</p></div><div class="grow"></div>';
+      return h + '<button class="btn" data-act="afterDone">相談をえらび直す</button></div>';
+    }
+    var ahead = aheadOf(m), s = slotOf(m.slotId);
+    h += '<div class="between"><span class="eyebrow">整理券 · YOUR TICKET</span><span class="mg">MG</span></div>';
+    h += '<div class="card hero"><div class="tk-top"><div class="between" style="align-items:flex-start"><span class="tk-no"><span style="font-size:20px;font-weight:500">No.</span><b>' + m.no + '</b></span><div class="seal' + (S.sealUntil > now ? " stamp" : "") + '" aria-label="受付の印">受付</div></div>';
+    h += '<div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">ご案内先</span><span class="hl">' + esc(destText(m)) + "</span></div>";
+    if (m.status === "waiting") h += "<div>" + stChip("waiting", "お待ちください") + "</div>";
+    else if (m.status === "calling") h += "<div>" + stChip("calling", "お呼び出し中", "bell") + "</div>";
+    else if (m.status === "in_progress") h += "<div>" + stChip("progress", "ご相談中") + "</div>";
+    else if (m.status === "skipped") h += "<div>" + stChip("skipped", "あと " + fmt(SKIP_LIMIT - (now - m.skippedAt)) + " のうちにお越しください", "clock") + "</div>";
+    h += '</div><div class="tear" aria-hidden="true"></div><div class="tk-bottom" aria-live="polite">';
+    if (m.status === "waiting") {
+      h += '<div style="display:flex;flex-direction:column"><span class="small">前にお待ちの方</span><span>' + (ahead ? 'あと <b class="big">' + ahead + "</b> 組" : '<b class="big" style="font-size:20px">次の番です</b>') + "</span></div>";
+      var em = estMin(s, ahead);
+      h += '<div style="display:flex;flex-direction:column"><span class="small">目安の待ち時間</span><span>' + (em ? 'およそ <b class="big">' + em + "</b> 分" : '<b class="big" style="font-size:20px">まもなく</b>') + "</span></div>";
+      h += '<span class="small" style="grid-column:span 2">発券 ' + hhmm(m.issuedAt) + " · 順番が近づいたら、この画面でお知らせします。</span>";
+    } else if (m.status === "calling") {
+      h += '<p class="p" style="grid-column:span 2"><b style="font-weight:500">' + esc(boothText(m)) + "</b> へお越しください。</p>";
+      h += '<button class="btn2" style="grid-column:span 2" data-act="showCall">' + ic("bell", 16) + "お呼び出しの画面を開く</button>";
+    } else if (m.status === "in_progress") {
+      h += '<p class="p" style="grid-column:span 2">' + esc(boothText(m)) + " でご相談中です。終わるとこの画面でお知らせします。</p>";
+    } else if (m.status === "skipped") {
+      h += '<p class="p" style="grid-column:span 2">お呼びした時にお姿が見えませんでした。あと <b class="num" style="font-weight:500">' + fmt(SKIP_LIMIT - (now - m.skippedAt)) + "</b> のうちに " + esc(boothText(m)) + " へお越しいただければ、先頭でご案内します。</p>";
+    }
+    h += "</div></div>";
+    if (m.status === "waiting" || m.status === "skipped") h += '<div class="notice n-info">' + ic("phone") + "<span>画面を閉じるとお呼び出しが届きません。この画面を開いたままお待ちください。お待ちのあいだ、ほかの企画をご覧いただけます。</span></div>";
+    h += '<div class="panel"><div><span class="row">' + ic("phone") + '<span id="lbl-wake">画面を消さない</span></span><button class="sw" role="switch" aria-labelledby="lbl-wake" aria-checked="' + S.wake + '" data-act="wake"><span></span></button></div>';
+    if (S.wakeNote) h += '<p class="small p" style="padding:0 16px 10px">' + esc(S.wakeNote) + "</p>";
+    h += '<hr><div><span class="row">' + ic("vol") + '<span id="lbl-sound">音で知らせる</span></span><button class="sw" role="switch" aria-labelledby="lbl-sound" aria-checked="' + S.sound + '" data-act="sound"><span></span></button></div></div>';
+    h += '<div class="grow"></div><button class="btn2" data-act="goList">' + ic("users", 16) + "ほかの相談員の様子を見る</button>";
+    if (m.status !== "in_progress") h += '<button class="quiet" data-act="cancel">この整理券をキャンセルする</button>';
+    return h + "</div>";
+  }
+
+  function vCall(m) {
+    var h = '<div class="call" role="alertdialog" aria-modal="true" aria-labelledby="call-title" aria-describedby="call-desc">';
+    h += '<div class="between" style="align-self:stretch"><span class="eyebrow">' + ic("bell", 16) + 'お呼び出し · NOW CALLING</span><span class="mg">MG</span></div>';
+    h += '<div style="margin-top:12px;display:flex;flex-direction:column;gap:2px"><span id="call-title" style="font-size:26px;line-height:38px;font-weight:500;letter-spacing:.04em">お呼び出しです</span><span class="hl">整理券 No.' + m.no + " の方</span></div>";
+    h += '<div class="call-win"><span class="eyebrow" style="color:var(--p-ink)">' + (m.slotId === "F" ? "教員相談 · BOOTH" : "学生相談 · BOOTH") + "</span><b>" + esc(m.booth || m.slotId) + "</b>" + (m.slotId === "F" ? "" : '<span class="small" style="color:var(--p-ink)">相談員 ' + esc(slotOf(m.slotId).name) + "</span>") + "</div>";
+    h += '<p class="p" id="call-desc">' + esc(boothText(m)) + " へお越しください。<br>[ブースの場所の案内文]</p><div class=\"grow\"></div>";
+    h += '<button class="btn-on-ink" data-act="ack">いま向かいます</button>';
+    h += '<p class="on-ink-soft">間に合わなかった場合も、10分以内にお越しいただければ先頭でご案内します。</p></div>';
+    return h;
+  }
+
+  function vConfirm() {
+    var m = myT();
+    return '<div class="scrim"><div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="cc-title"><div class="grip"></div><span class="hl" id="cc-title">整理券 No.' + m.no + " をキャンセルしますか</span><p class=\"p small\">キャンセルすると、この順番には戻れません。聞きたいことのメモもすぐに消えます。</p><button class=\"btn2 danger\" data-act=\"cancelYes\">キャンセルする</button><button class=\"btn\" data-act=\"cancelNo\">整理券を持ったまま待つ</button></div></div>";
+  }
+
+  function visitorHTML() {
+    var h = "";
+    if (S.stage === "gate") h = vGate();
+    else if (S.stage === "ticket") h = vTicket();
+    else h = vList();
+    if (S.sheet) h += vSheet();
+    if (S.confirmCancel && myT()) h += vConfirm();
+    var m = myT();
+    if (m && m.status === "calling" && !S.callAck) h += vCall(m);
+    return h;
+  }
+
+  /* ---------- スタッフの画面 ---------- */
+  function staffHTML() {
+    var isF = S.staffSlot === "F", slot = slotOf(S.staffSlot), now = Date.now();
+    var h = '<div class="staff"><div class="scroll" data-scroll="staff">';
+    h += '<div class="between"><span class="eyebrow">スタッフ · STAFF</span><span class="mg">MG</span></div>';
+    h += '<div class="field"><label class="label" for="s-slot">担当</label><select id="s-slot" class="sel">';
+    S.slots.forEach(function (s) { h += '<option value="' + s.id + '"' + (s.id === S.staffSlot ? " selected" : "") + ">学生相談 " + s.id + " · " + esc(s.name) + "</option>"; });
+    h += '<option value="F"' + (isF ? " selected" : "") + ">教員相談</option></select></div>";
+    if (isF) {
+      h += '<div class="field"><label class="label" for="s-booth">座っているブース</label><select id="s-booth" class="sel">' + BOOTHS.map(function (b) { return '<option value="' + b + '"' + (b === S.booth ? " selected" : "") + ">ブース " + b + "</option>"; }).join("") + "</select></div>";
+    }
+    if (!isF && slot.preparing) {
+      h += '<div class="claim"><span class="win" aria-hidden="true">' + esc(slot.name.charAt(0)) + '</span><span class="hl">学生相談 ' + slot.id + " · " + esc(slot.name) + '</span><p class="p small">この枠はまだ受付を始めていません。担当すると、来場者の一覧で「すぐご案内できます」と表示されます。</p><button class="btn" data-act="claim">この枠を担当して受付を始める</button></div></div></div>';
+      return h;
+    }
+    var st = statusOf(slot), w = waiting(slot.id), lim = slot.limit, step = isF ? 5 : 1, lo = isF ? 10 : 1, hi = isF ? 80 : 10;
+    h += '<div class="panel"><div><span>列の上限</span><span class="row" style="gap:10px"><button class="icon-btn" data-act="lim" data-id="-1" aria-label="上限を' + step + 'つ減らす"' + (lim <= lo ? " disabled" : "") + ">" + ic("minus") + '</button><span class="num" style="min-width:52px;text-align:center"><b class="big">' + lim + '</b><span class="small"> 組</span></span><button class="icon-btn" data-act="lim" data-id="1" aria-label="上限を' + step + 'つ増やす"' + (lim >= hi ? " disabled" : "") + ">" + ic("plus") + "</button></span></div>";
+    h += '<hr><div><span id="lbl-pause">新しい受付を一時停止する</span><button class="sw" role="switch" aria-labelledby="lbl-pause" aria-checked="' + slot.paused + '" data-act="pause"><span></span></button></div></div>';
+    if (st.k === "paused") h += '<div class="notice n-warn">' + ic("pause") + "<span><b style=\"font-weight:500\">受付を止めています（" + st.reason + "）。</b>並んでいる方はそのままお呼びできます。</span></div>";
+    var cur = staffUnit();
+    if (cur) h += '<h3 class="t2" style="font-size:17px">対応中</h3>' + qrow(cur, true);
+    h += '<div class="between"><h3 class="t2">お待ちの方</h3><span class="small">' + w.length + "組 / 上限 " + lim + "組</span></div>";
+    h += '<div style="display:flex;flex-direction:column;gap:8px">';
+    if (!w.length) h += '<p class="small p">お待ちの方はいません。</p>';
+    w.slice(0, isF ? 8 : 10).forEach(function (t) { h += qrow(t, false); });
+    if (isF && w.length > 8) h += '<p class="small p">ほか ' + (w.length - 8) + "組（全学の教員相談の列）</p>";
+    var sk = skippedOf(slot.id, S.booth);
+    sk.forEach(function (t) { h += '<div class="skiprow"><span>不在 No.' + t.no + (t.mine ? ' <span class="mine">来場者の画面</span>' : "") + ' · 復帰まで <b class="num" style="font-weight:500">' + fmt(SKIP_LIMIT - (now - t.skippedAt)) + '</b></span><button class="btn2" style="height:44px;padding:0 14px" data-act="restore" data-id="' + t.id + '">' + ic("undo", 16) + "復帰</button></div>"; });
+    h += "</div></div>";
+    // 操作帯
+    h += '<div class="bar">';
+    if (S.pending) {
+      var left = S.pending.until - now, pt = S.tickets.filter(function (x) { return x.id === S.pending.id; })[0];
+      h += '<div class="undo" role="status"><span>No.' + pt.no + (S.pending.type === "finish" ? " の相談を終えます" : " を不在にします") + '（<span class="num">' + Math.ceil(left / 1000) + '</span>秒）</span><button data-act="undo">' + ic("undo", 16) + "取り消す</button><i style=\"width:" + Math.max(0, left / UNDO_MS * 100) + '%"></i></div>';
+    } else if (!cur) {
+      h += '<div class="between small"><span class="row">' + ic("users", 16) + "お待ちの方 " + w.length + "組</span>" + (isF ? "<span>ブース " + S.booth + "</span>" : "") + "</div>";
+      h += '<button class="btn" data-act="call"' + (w.length ? "" : " disabled") + ">" + ic("bell") + "次の方を呼ぶ</button>";
+    } else if (cur.status === "calling") {
+      var el = now - cur.calledAt, late = el > 3 * 60000;
+      h += '<div class="between" style="font-size:13px"><span class="row">' + ic("bell", 16) + "No." + cur.no + " をお呼び出し中</span><span class=\"timer" + (late ? " warn-text" : "") + '">' + fmt(el) + "</span></div>";
+      h += '<span class="small' + (late ? " warn-text" : "") + '" style="font-size:12px">' + (late ? "3分を過ぎました。口頭でもお呼びください。" : "3分を過ぎたら、口頭でもお呼びください。") + "</span>";
+      h += '<div class="row"><button class="btn2" style="height:52px" data-act="skip">不在</button><button class="btn grow" data-act="start">相談を始める</button></div>';
+    } else {
+      var el2 = now - cur.startedAt, long = el2 > 15 * 60000;
+      h += '<div class="between" style="font-size:13px"><span class="row">' + ic("clock", 16) + "No." + cur.no + " とご相談中</span><span class=\"timer" + (long ? " warn-text" : "") + '">' + fmt(el2) + "</span></div>";
+      if (long) h += '<span class="small warn-text" style="font-size:12px">15分を過ぎました。</span>';
+      h += '<button class="btn" data-act="finish">' + ic("check") + "相談を終える</button>";
+    }
+    return h + "</div></div>";
+  }
+  function qrow(t, current) {
+    var open = current || S.openRow === t.id, mins = Math.max(0, Math.floor((Date.now() - t.issuedAt) / 60000));
+    var h = current ? '<div class="qrow current">' : '<button class="qrow" data-act="row" data-id="' + t.id + '" aria-expanded="' + open + '">';
+    h += '<span class="between"><span class="hl">No.' + t.no + " · " + esc(t.grade || "学年の回答なし") + "</span>" + (t.mine ? '<span class="mine">来場者の画面</span>' : "") + "</span>";
+    h += '<span class="tags">' + (t.themes.length ? t.themes.map(function (x) { return "#" + esc(x); }).join(" ") : "テーマの回答なし") + " · 待ち " + mins + "分" + (t.note && !open ? " · メモあり" : "") + "</span>";
+    if (open) h += '<span class="memo">' + (t.note ? esc(t.note) : "メモはありません。") + "</span>";
+    return h + (current ? "</div>" : "</button>");
+  }
+
+  /* ---------- 描画 ---------- */
+  function paint(id, html, skip) {
+    var root = document.getElementById(id);
+    if (skip || root._last === html) return;
+    var scrolls = {}, ae = document.activeElement, key = null, selS = null, selE = null;
+    root.querySelectorAll("[data-scroll]").forEach(function (el) { scrolls[el.dataset.scroll] = el.scrollTop; });
+    if (ae && root.contains(ae)) {
+      if (ae.id) { key = "#" + ae.id; try { selS = ae.selectionStart; selE = ae.selectionEnd; } catch (e) {} }
+      else if (ae.dataset.act) key = '[data-act="' + ae.dataset.act + '"]' + (ae.dataset.id != null ? '[data-id="' + ae.dataset.id + '"]' : "");
+    }
+    root.innerHTML = html; root._last = html;
+    root.querySelectorAll("[data-scroll]").forEach(function (el) { if (scrolls[el.dataset.scroll] != null) el.scrollTop = scrolls[el.dataset.scroll]; });
+    if (key) { var n = root.querySelector(key); if (n) { n.focus({ preventScroll: true }); if (selS != null && n.setSelectionRange) try { n.setSelectionRange(selS, selE); } catch (e) {} } }
+  }
+  function render(force) {
+    sync();
+    var ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && !force;
+    var m = myT(), mustCall = m && m.status === "calling" && !S.callAck;
+    paint("visitor", visitorHTML(), typing && document.getElementById("visitor").contains(ae) && !mustCall);
+    paint("staff", staffHTML(), typing && document.getElementById("staff").contains(ae));
+    document.getElementById("demo-auto").setAttribute("aria-checked", String(S.auto));
+    var called = m && m.status === "calling";
+    var tabs = '<button role="tab" data-act="view" data-id="visitor" aria-selected="' + (S.view === "visitor") + '">来場者' + (called ? '<span class="dot" aria-label="お呼び出し中"></span>' : "") + '</button><button role="tab" data-act="view" data-id="staff" aria-selected="' + (S.view === "staff") + '">スタッフ</button>';
+    var vt = document.getElementById("view-tabs"); if (vt._last !== tabs) { vt.innerHTML = tabs; vt._last = tabs; }
+    document.getElementById("dev-visitor").classList.toggle("on", S.view === "visitor");
+    document.getElementById("dev-staff").classList.toggle("on", S.view === "staff");
+  }
+
+  /* ---------- 操作 ---------- */
+  function act(a, id, el) {
+    var now = Date.now(), m = myT(), cur;
+    switch (a) {
+      case "enter":
+        if (S.lockUntil > now) break;
+        if (S.code === ENTRY) { S.stage = "list"; S.codeErr = ""; S.attempts = 0; }
+        else if (S.code.length < 7) S.codeErr = "7桁の数字をご入力ください。";
+        else { S.attempts++; S.codeErr = "掲示の数字と少し異なっているようです。会場のポスターにある7桁をご確認ください。"; if (S.attempts >= 5) { S.lockUntil = now + 10 * 60000; S.codeErr = ""; } }
+        break;
+      case "qr": S.checking = true; setTimeout(function () { S.checking = false; S.stage = "list"; render(true); }, 900); break;
+      case "tab": S.tab = id; break;
+      case "filter": if (!id) S.filters = []; else { var i = S.filters.indexOf(id); if (i >= 0) S.filters.splice(i, 1); else S.filters.push(id); } break;
+      case "pick":
+        if (myLive()) { S.msg = "整理券はお一人1枚までです。いまの整理券をキャンセルすると、ほかの相談を選べます。"; break; }
+        S.sheet = id; S.form = { grade: null, themes: [], note: "" }; break;
+      case "closeSheet": S.sheet = null; break;
+      case "grade": S.form.grade = S.form.grade === id ? null : id; break;
+      case "theme": var j = S.form.themes.indexOf(id); if (j >= 0) S.form.themes.splice(j, 1); else if (S.form.themes.length < 5) S.form.themes.push(id); break;
+      case "issue":
+        var ta = document.getElementById("v-note"); if (ta) S.form.note = ta.value.slice(0, 200);
+        var t = addTicket(S.sheet, true, S.form);
+        S.my = t.id; S.sheet = null; S.stage = "ticket"; S.sealUntil = now + 600; S.msg = "";
+        S.staffSlot = t.slotId; S.openRow = null;
+        break;
+      case "goTicket": S.stage = "ticket"; S.msg = ""; break;
+      case "goList": S.stage = "list"; break;
+      case "dismiss": S.msg = ""; break;
+      case "cancel": S.confirmCancel = true; break;
+      case "cancelNo": S.confirmCancel = false; break;
+      case "cancelYes": if (m) { m.status = "canceled"; m.note = ""; } S.my = null; S.confirmCancel = false; S.stage = "list"; S.msg = "整理券をキャンセルしました。"; break;
+      case "ack": S.callAck = true; if (m) m.arriving = true; break;
+      case "showCall": S.callAck = false; break;
+      case "afterDone": S.my = null; S.stage = "list"; break;
+      case "wake":
+        S.wake = !S.wake; S.wakeNote = "";
+        if (S.wake) { try { navigator.wakeLock.request("screen").then(function (l) { wakeLock = l; }, function () { S.wakeNote = "この環境では使えないため、見た目だけ切り替えています。"; render(); }); } catch (e) { S.wakeNote = "この環境では使えないため、見た目だけ切り替えています。"; } }
+        else if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+        break;
+      case "sound":
+        S.sound = !S.sound;
+        if (S.sound) { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume && audio.resume(); beep(); } catch (e) {} }
+        break;
+      case "claim": slotOf(S.staffSlot).preparing = false; break;
+      case "lim": var sl = slotOf(S.staffSlot), stp = S.staffSlot === "F" ? 5 : 1, lo = S.staffSlot === "F" ? 10 : 1, hi = S.staffSlot === "F" ? 80 : 10; sl.limit = Math.min(hi, Math.max(lo, sl.limit + Number(id) * stp)); break;
+      case "pause": slotOf(S.staffSlot).paused = !slotOf(S.staffSlot).paused; break;
+      case "row": S.openRow = S.openRow === id ? null : id; break;
+      case "call": var q = waiting(S.staffSlot); if (q.length && !staffUnit()) callT(q[0], S.staffSlot === "F" ? S.booth : S.staffSlot); break;
+      case "start": cur = staffUnit(); if (cur && cur.status === "calling") startT(cur); break;
+      case "finish": cur = staffUnit(); if (cur) S.pending = { type: "finish", id: cur.id, until: now + UNDO_MS }; break;
+      case "skip": cur = staffUnit(); if (cur) S.pending = { type: "skip", id: cur.id, until: now + UNDO_MS }; break;
+      case "undo": S.pending = null; break;
+      case "restore":
+        var r = S.tickets.filter(function (x) { return x.id === id; })[0];
+        if (r) { var minO = Math.min.apply(null, waiting(r.slotId).map(function (x) { return x.order; }).concat([S.order])); r.status = "waiting"; r.order = minO - 1; r.skippedAt = 0; r.arriving = false; }
+        break;
+      case "auto": S.auto = !S.auto; break;
+      case "reset":
+        var keep = { auto: S.auto, view: S.view }; S = initial(); S.auto = keep.auto; S.view = keep.view;
+        if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+        break;
+      case "view": S.view = id; break;
+    }
+    render(true);
+  }
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-act]");
+    if (!el || el.disabled) return;
+    if (el.dataset.self && e.target !== el) return;
+    act(el.dataset.act, el.dataset.id, el);
+  });
+  document.addEventListener("input", function (e) {
+    var t = e.target;
+    if (t.id === "v-code") {
+      var d = t.value.replace(/\D/g, "").slice(0, 7); S.code = d; t.value = fmtCode(d);
+      if (S.codeErr) { S.codeErr = ""; t.removeAttribute("aria-invalid"); var er = document.getElementById("v-code-err"); if (er) er.remove(); }
+    } else if (t.id === "v-note") {
+      S.form.note = t.value.slice(0, 200); var c = document.getElementById("v-note-count"); if (c) c.textContent = S.form.note.length + " / 200";
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.target.id === "v-code" && e.key === "Enter" && !e.isComposing) { e.preventDefault(); act("enter"); }
+    if (e.key === "Escape" && document.getElementById("visitor").contains(e.target)) {
+      if (S.confirmCancel) act("cancelNo"); else if (S.sheet) act("closeSheet");
+    }
+  });
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.id === "s-slot") { S.staffSlot = t.value; S.openRow = null; S.pending = null; render(true); }
+    if (t.id === "s-booth") { S.booth = t.value; S.pending = null; render(true); }
+  });
+
+  setInterval(function () { applyPending(); expireSkips(); if (S.lockUntil && S.lockUntil < Date.now()) { S.lockUntil = 0; S.attempts = 0; } render(); }, 1000);
+  setInterval(autoTick, TICK);
+  render(true);
+})();
+</script>

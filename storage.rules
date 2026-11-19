@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// P0 時点の仮ルール。すべて拒否する。画像の読み取りは P1 で追加する。
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
