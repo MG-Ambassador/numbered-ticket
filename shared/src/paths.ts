@@ -11,6 +11,7 @@ export const paths = {
   ticket: (eid: string, ticketId: string) => `events/${eid}/tickets/${ticketId}`,
   visitor: (eid: string, uid: string) => `events/${eid}/visitors/${uid}`,
   staff: (eid: string, uid: string) => `events/${eid}/staff/${uid}`,
+  rateLimit: (eid: string, key: string) => `events/${eid}/rateLimits/${key}`,
   auditLog: (eid: string) => `events/${eid}/auditLog`,
   stats: (eid: string, date: string) => `events/${eid}/stats/${date}`,
 } as const;
