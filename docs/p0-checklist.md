@@ -11,28 +11,31 @@
 - [x] 画面から「匿名ログイン → callable 関数」の疎通を Emulator で確認
 - [x] 7.4 の検証のうち Emulator でできるもの（`npm run test:rules`）→ 結果は [p0-verification.md](p0-verification.md)
 
-## B. 手作業（本人が行う。Claude は代行しない）
+## B. 本番プロジェクトの準備（完了 2026-11-21）
 
-権限・請求・規約同意を伴うため、以下は本人が行ってください。
+カード登録・アカウントのセキュリティ設定は本人、それ以外は Claude が Chrome で操作。
 
 - [x] **大学の外部クラウド利用申請を提出**（承認済み。運用用の Google アカウントあり）
-- [ ] 請求先アカウントの利用可否を確認（Blaze に必要。決まらないと本番環境を作れない）
-- [ ] `firebase login --reauth`（CLI の認証が切れている。Emulator だけなら不要）
-- [ ] GCP 専用プロジェクトを作成（例: `oc-ticket-2027`。東京リージョン）
-- [ ] Firebase を追加し、Blaze に切り替え
-- [ ] 予算アラート ¥1,000/月（50・90・100% で通知）を設定
-- [ ] Identity Platform にアップグレード（TOTP MFA に必要）
-- [ ] Firestore を asia-northeast1 で作成（PITR は有効にしない）
-- [ ] 作成後、プロジェクト ID を伝えてもらえれば `.firebaserc` に `prod` エイリアスを追加する
+- [x] 請求先はカード（請求先アカウント「Firebase のお支払い」、通貨 JPY）
+- [x] 運用アカウントの2段階認証を有効化（Firebase コンソールの利用に必須）
+- [x] Firebase プロジェクト `oc-ticket-2027` を作成（アナリティクス・Gemini・デベロッパー プログラムはオフ）
+- [x] Blaze に切り替え
+- [x] 予算アラート ¥1,000/月（¥500・¥900・¥1,000 で通知）。サービスレベルの利用額上限（自動停止）は設定しない
+- [x] Identity Platform にアップグレード（元に戻せない）
+- [x] Firestore `(default)` を asia-northeast1、Standard エディション、本番環境モードで作成（バックアップなし）
+- [x] Storage `oc-ticket-2027.firebasestorage.app` を ASIA-NORTHEAST1、本番環境モードで作成
+- [x] `.firebaserc` に `prod: oc-ticket-2027` を追加
+- [x] `firebase login --reauth` を運用アカウントで実行（2026-11-23。CLI から `oc-ticket-2027` が見えることを確認）
+- [x] Authentication のログイン方法（匿名、メール/パスワード）、TOTP、パスワードポリシーを設定
 
 ## C. 本番プロジェクトができてから行う 7.4 の検証
 
 Emulator では本番と同じ結果にならない項目です。手順は [p0-verification.md](p0-verification.md) を参照。
 
-- [ ] 7.4-1 実際の TOTP ログインのトークンに `sign_in_second_factor: 'totp'` が入るか
-- [ ] 7.4-2 TOTP 登録に `emailVerified: true` が必要か、それで足りるか
-- [ ] 7.4-3 callable 関数で実 IP が取れるか（`verifyIp` をデプロイして確認）
-- [ ] 7.4-4 購読中の閉場（本番でも Emulator と同じ挙動か）
-- [ ] 7.4-5 Firestore TTL の削除が24時間以内か
-- [ ] 7.4-6 Identity Platform で新規登録の無効化とパスワードポリシーを設定できるか
-- [ ] 7.4-7 料金ページで単価と無料枠を確認
+- [x] 7.4-1 実際の TOTP ログインのトークンに `sign_in_second_factor: 'totp'` が入るか → 入る
+- [x] 7.4-2 TOTP 登録に `emailVerified: true` が必要か → 必要で、それで足りる
+- [x] 7.4-3 callable 関数で実 IP が取れるか → X-Forwarded-For の末尾で取れる（req.ip は偽装可）
+- [x] 7.4-4 購読中の閉場 → 本番では15秒以内に permission-denied で止まる
+- [ ] 7.4-5 Firestore TTL の削除が24時間以内か → 計測中（2026-11-24 02:41 UTC 以降に確認）
+- [x] 7.4-6 新規登録の無効化 → 匿名も止まるので不可（ブロッキング関数で代替）。パスワードポリシー → 可
+- [ ] 7.4-7 料金 → 無料枠は確認。東京の単価は P4 の請求レポートで確認

@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "demo-numbered-ticket"
+    "default": "demo-numbered-ticket",
+    "prod": "oc-ticket-2027"
   }
 }

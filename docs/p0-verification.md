@@ -1,20 +1,38 @@
 # 設計書 7.4 の検証結果
 
-検証コード: `verify/src/p0-rules.test.ts`、`functions/src/index.ts`（`verifyIp`）
-実行: `npm run test:rules`（Firestore Emulator）
+- Emulator 検証: `verify/src/p0-rules.test.ts`（`npm run test:rules`）— 2026-11-15
+- 本番検証: プロジェクト `oc-ticket-2027` — 2026-11-23。検証用の関数・ドキュメント・ユーザーは削除済み（TTL 計測用の `verifyTtl` のみ残置）
 
-| # | 項目 | Emulator での結果（2026-11-15） | 本番での確認 | 設計への影響 |
-| --- | --- | --- | --- | --- |
-| 1 | ルールで `sign_in_second_factor == 'totp'` を判定できるか | **判定できる**。totp は読める、第2要素なしと phone は拒否 | 未。Emulator はトークンを模擬しているだけなので、実際の TOTP ログインのトークンにこの値が入るかを確認する | 確認できればなし |
-| 2 | TOTP 登録に `emailVerified: true` が必要か | 未検証（Auth Emulator は TOTP MFA を再現できない） | 未。管理者アカウントを Admin SDK で作り、`emailVerified` の有無で登録を試す | 必要なら管理者作成スクリプトで `emailVerified: true` を設定する |
-| 3 | callable 関数で実 IP が取れるか | Emulator では `ip: null`（本番の判断材料にならない） | 未。`verifyIp` をデプロイし、スマホ回線から呼んで `ip` と `x-forwarded-for` を見る | 取れなければ IP ごとの試行制限（V-01）を端末ごとのみにする |
-| 4 | 購読中に閉場したときルールが再評価されるか | **events を closed にしただけでは何も起きない**。購読中のドキュメントが次に更新された時点で `permission-denied` になり購読が止まる | 未。本番でも同じ挙動か確認する | 閉場処理で `board/public` と各整理券を必ず更新する（整理券の expired 化・問診メモ削除で更新が入るので、設計どおりで足りる見込み） |
-| 5 | Firestore TTL の削除が24時間以内か | 未検証（Emulator は TTL 非対応） | 未。TTL ポリシーを設定してテスト用ドキュメントで計測する | 24時間を超えるなら、閉場+1時間の物理削除は関数で行う（設計どおり）。TTL は保険扱い |
-| 6 | Identity Platform で新規登録無効化・パスワードポリシーを設定できるか | 未検証（コンソールの設定項目） | 未 | 不可なら `beforeUserCreated` ブロッキング関数で拒否する |
-| 7 | 料金の単価と無料枠 | 未 | 未。公式の料金ページで確認 | 予算 $25 に収まるか P4 の計測と照合 |
+## 結果一覧
+
+| # | 項目 | 結果 | 設計への影響 |
+| --- | --- | --- | --- |
+| 1 | ルールで `sign_in_second_factor == 'totp'` を判定できるか | **できる**。Emulator のルールテストで判定を確認。本番で実際に TOTP ログインしたトークンに `firebase.sign_in_second_factor: "totp"` が入ることを確認 | なし（設計どおり） |
+| 2 | TOTP 登録に `emailVerified: true` が必要か | **必要**。未確認だと `UNVERIFIED_EMAIL`。Admin で `emailVerified: true` にすれば登録・ログインまで通る（メール送信は不要） | 管理者作成スクリプトで `emailVerified: true` を付けて作成する |
+| 3 | callable 関数で実 IP が取れるか | **取れる。ただし `req.ip` は偽装できる**。クライアントが `X-Forwarded-For: 1.2.3.4` を送ると `req.ip` が `1.2.3.4` になる。Google が付け足す**末尾**の値（例: `1.2.3.4,202.13.156.120` の `202.13.156.120`）が実 IP | IP ごとの試行制限（V-01）は `X-Forwarded-For` の**末尾**を使う。`req.ip` は使わない |
+| 4 | 購読中に閉場したときルールが再評価されるか | **本番では再評価される**。`events` を closed にしてから 15 秒以内に購読が `permission-denied` で止まった。Emulator では購読対象が次に更新されるまで止まらず、挙動が違う | なし。閉場処理で整理券も更新するので、どちらでも止まる |
+| 5 | Firestore TTL の削除が24時間以内か | **計測中**。2026-11-23 02:41 UTC に期限切れの `verifyTtl/doc1〜3` を作成 | 2026-11-24 02:41 UTC 以降に残っているか確認する |
+| 6 | 新規登録の無効化・パスワードポリシーを設定できるか | パスワードポリシーは**できる**（12〜128文字、強制。11文字以下は `PASSWORD_DOES_NOT_MEET_REQUIREMENTS`）。新規登録の無効化（`disabledUserSignup`）は**使えない**: 有効にすると**匿名ログインも `ADMIN_ONLY_OPERATION` で拒否される**。既存ユーザーのログインは可 | 新規登録は有効のままにする。メール/パスワードでの新規登録は `beforeUserCreated` ブロッキング関数で拒否し、匿名だけ通す。管理者は Admin SDK で作成（ブロッキング関数の対象外） |
+| 7 | 料金の単価と無料枠 | 無料枠は確認（下表）。東京リージョンの単価は Google Cloud の料金ページが読み取れず**未確認** | 単価は P4 で実際の請求レポートから確認する |
+
+## 料金の無料枠（https://firebase.google.com/pricing 、2026-11-23 時点）
+
+| サービス | 無料枠 | 見込み |
+| --- | --- | --- |
+| Firestore 読み取り | 5万/日 | 開催日は一覧の購読で超える可能性あり。超過分は少額（P4 で計測） |
+| Firestore 書き込み / 削除 | 2万/日 / 2万/日 | 収まる見込み |
+| Firestore 保存 | 1 GiB | 収まる |
+| Functions 呼出 | 200万/月（超過 $0.40/100万） | 収まる。minInstances 1 の待機費用は P4 で計測 |
+| Authentication（Identity Platform） | 5万 MAU | 収まる（1日約150組） |
+| Storage（*.firebasestorage.app） | **無料枠は us-central1・us-west1・us-east1 のみ**。東京のバケットは無料枠なし | プロフィール画像のみで数 MB のため、月に数円の見込み |
+
+## 本番の現在の設定（2026-11-23）
+
+- Authentication: 匿名とメール/パスワードを有効化。新規登録は有効のまま。TOTP の MFA を有効化（前後1区間まで許容）。パスワードポリシーは12文字以上を強制
+- Firestore ルール: `firestore.rules` をデプロイ済み（全拒否＋検証用パス。検証用パスは P1 で削除）
+- Functions: なし（`verifyIp` は削除済み）。コンテナイメージの削除ポリシー（1日）を設定済み
 
 ## 補足
 
-- 7.4-4 の Emulator でのログ:
-  `["snapshot n=0", "--- events/e1 を closed に変更", "--- verifyLive/a を更新", "error permission-denied"]`
-- 検証用のルール（`/verify/mfa`、`/verifyLive/{id}`）と `verifyIp` 関数は P0 専用。P1・P2 で削除する。
+- 7.4-4 のログ: Emulator `["snapshot n=0", "--- closed", "--- 購読対象を更新", "error permission-denied"]` ／ 本番 `["snapshot n=0", "--- closed", "error permission-denied", "--- 購読対象を更新"]`
+- 本番検証のスクリプト: `verify/src/prod-reeval.mjs`（7.4-4）。TOTP 検証はスクラッチ上のスクリプトで実施
