@@ -3,6 +3,7 @@
 
 export * from './model.js';
 export * from './paths.js';
+export * from './api.js';
 
 export const REGION = 'asia-northeast1';
 
@@ -62,3 +63,13 @@ export type SlotKind = (typeof SLOT_KINDS)[number];
 
 /** 教員相談は全学1本の列なので、枠も1つだけ */
 export const FACULTY_SLOT_ID = 'faculty';
+
+/** 試行制限（V-01・S-01）。窓はいずれも10分。失敗した回数だけ数える */
+export const RATE_LIMITS = {
+  entryPerDevice: { windowSeconds: 600, max: 5 },
+  entryPerIp: { windowSeconds: 600, max: 50 },
+  staffPerDevice: { windowSeconds: 600, max: 3 },
+} as const;
+
+/** TTL（expireAt）は閉場からこの時間後。閉場＋1時間の削除が漏れた場合の保険 */
+export const TTL_AFTER_CLOSE_HOURS = 2;

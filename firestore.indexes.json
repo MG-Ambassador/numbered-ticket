@@ -23,6 +23,7 @@
     { "collectionGroup": "tickets", "fieldPath": "memo", "indexes": [] },
     { "collectionGroup": "visitors", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
     { "collectionGroup": "staff", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
-    { "collectionGroup": "auditLog", "fieldPath": "expireAt", "ttl": true, "indexes": [] }
+    { "collectionGroup": "auditLog", "fieldPath": "expireAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "rateLimits", "fieldPath": "expireAt", "ttl": true, "indexes": [] }
   ]
 }

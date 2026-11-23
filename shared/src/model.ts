@@ -147,9 +147,17 @@ export interface SkippedEntry extends QueueEntry {
   returnDeadline: TimestampLike;
 }
 
+/** 列を受け持っているブース。学生は占有者1件（ブースは枠の位置）、教員はブースを設定した教員スタッフ */
+export interface BoothEntry {
+  staffUid: string;
+  booth: string | null;
+}
+
 /** 読める人: 担当スタッフ（学生は占有者、教員相談は教員スタッフ）、管理者 */
 export interface QueueDoc {
   kind: SlotKind;
+  /** 稼働中のブース。件数が board の activeBooths になる */
+  booths: BoothEntry[];
   /** 待ち順。先頭が次に呼ばれる */
   waiting: QueueEntry[];
   skipped: SkippedEntry[];
@@ -261,6 +269,20 @@ export interface StaffDoc {
   loggedInAt: TimestampLike;
   /** 生存確認（画面を開いている間、定期的に更新） */
   lastSeenAt: TimestampLike;
+  expireAt: TimestampLike;
+}
+
+// ---------------------------------------------------------------------------
+// events/{eventId}/rateLimits/{key}
+// ---------------------------------------------------------------------------
+
+/**
+ * 試行制限（V-01・S-01）。読める人: なし（関数のみ）。
+ * key は `<scope>_<HMAC-SHA256>`。端末の uid や IP はそのまま保存しない。
+ */
+export interface RateLimitDoc {
+  /** 窓の期間内の失敗時刻 */
+  failures: TimestampLike[];
   expireAt: TimestampLike;
 }
 
