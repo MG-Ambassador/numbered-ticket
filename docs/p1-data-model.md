@@ -60,5 +60,10 @@
 - クレームの付与と、付与後のトークン更新（クライアント側は P3）
 - 整理券の状態遷移は `TICKET_TRANSITIONS` 以外を拒否する
 - `memo` の削除（完了・キャンセル・閉場）
-- 本番へのルールのデプロイ（`firebase deploy --only firestore,storage --project prod`）。デプロイすると P0 の検証用パス（`verify/mfa`, `verifyLive`）がなくなり、`verify/src/prod-reeval.mjs` は動かなくなる
-- Storage ルールの `firestore.get()` は本番では初回デプロイ時に権限の付与を求められる
+- 索引・TTL の本番へのデプロイ（`firebase deploy --only firestore:indexes --project prod`）。7.4-5 の TTL 計測（`verifyTtl`）が終わってから行う。`verifyTtl` の TTL 設定はファイルにないため、デプロイ時に削除を求められても削除しない
+
+## 本番へのデプロイ（2026-11-23）
+
+`firebase deploy --only firestore:rules,storage --project prod` で Firestore・Storage のルールをデプロイした。本番のルールが手元のファイルと一致することを Rules API で確認済み。P0 の検証用パス（`verify/mfa`, `verifyLive`）はなくなったため、`verify/src/prod-reeval.mjs` はもう動かない
+
+Storage ルールの `firestore.get()` のため、`service-<番号>@firebase-rules.iam.gserviceaccount.com` に `roles/firebaserules.firestoreServiceAgent`（Firebase Rules Firestore Service Agent）を付与した（2026-11-23）。実際に画像が読めるかは、画像を置く P2・P3 で確かめる
