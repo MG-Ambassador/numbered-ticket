@@ -1,6 +1,6 @@
 # 設計書 7.4 の検証結果
 
-- Emulator 検証: `verify/src/p0-rules.test.ts`（`npm run test:rules`）— 2026-11-15
+- Emulator 検証: `verify/src/p0-rules.test.ts`（`npm run test:rules`）— 2026-11-15。P1 で削除し、7.4-1・7.4-4 の確認は本番ルールのテスト `verify/src/p1-rules.test.ts` に移した
 - 本番検証: プロジェクト `oc-ticket-2027` — 2026-11-23。検証用の関数・ドキュメント・ユーザーは削除済み（TTL 計測用の `verifyTtl` のみ残置）
 
 ## 結果一覧
@@ -29,7 +29,7 @@
 ## 本番の現在の設定（2026-11-23）
 
 - Authentication: 匿名とメール/パスワードを有効化。新規登録は有効のまま。TOTP の MFA を有効化（前後1区間まで許容）。パスワードポリシーは12文字以上を強制
-- Firestore ルール: `firestore.rules` をデプロイ済み（全拒否＋検証用パス。検証用パスは P1 で削除）
+- Firestore ルール: `firestore.rules` をデプロイ済み（全拒否＋検証用パス。リポジトリでは P1 で検証用パスを削除済み、本番へのデプロイはまだ）
 - Functions: なし（`verifyIp` は削除済み）。コンテナイメージの削除ポリシー（1日）を設定済み
 
 ## 補足

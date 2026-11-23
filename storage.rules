@@ -1,10 +1,41 @@
 rules_version = '2';
 
-// P0 時点の仮ルール。すべて拒否する。画像の読み取りは P1 で追加する。
+// プロフィール画像（shared/src/paths.ts の storagePaths.avatar）。
+// - 読める人は slots と同じ: 開場中の来場者、スタッフ（開場前・開場中）、管理者
+// - クライアントは getBlob() で取得し、公開 URL（getDownloadURL）は使わない
+// - アップロードは管理者の関数（Admin SDK）で行うため、クライアントの書き込みは拒否する
 service firebase.storage {
   match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function claim(key) {
+      return request.auth.token.get(key, null);
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && claim('admin') == true
+        && request.auth.token.firebase.get('sign_in_second_factor', null) == 'totp';
+    }
+
+    function hasRole(eid, roles) {
+      return signedIn() && claim('eid') == eid && claim('role') in roles;
+    }
+
+    function eventState(eid) {
+      return firestore.get(/databases/(default)/documents/events/$(eid)).data.state;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
+    }
+
+    match /events/{eid}/avatars/{slotId} {
+      allow get: if (hasRole(eid, ['visitor']) && eventState(eid) == 'open')
+        || (hasRole(eid, ['student', 'faculty']) && eventState(eid) in ['scheduled', 'open'])
+        || isAdmin();
     }
   }
 }

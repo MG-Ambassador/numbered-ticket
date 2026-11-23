@@ -1,5 +1,6 @@
 // 7.4-4 の本番検証: 購読中に閉場したとき、ルールが再評価されるか
 // 実行: node verify/src/prod-reeval.mjs （運用アカウントの gcloud 認証が必要）
+// P0 の検証用ルール（verifyLive）が前提。P1 のルールをデプロイしたあとは動かない
 import { execFileSync } from 'node:child_process';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';

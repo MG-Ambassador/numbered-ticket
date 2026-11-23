@@ -1,21 +1,131 @@
 rules_version = '2';
 
-// P0 時点の仮ルール。クライアントからの読み書きはすべて拒否する。
-// 読み取りの許可は P1 で設計書 5.1 の「読める人」に沿って追加する。
+// 設計書 5.1 の「読める人」をそのままルールにしたもの。データの形は shared/src/model.ts。
+// - クライアントからの書き込みはすべて拒否する（書くのは Cloud Functions の Admin SDK だけ）
+// - 誰が何者かはカスタムクレーム { eid, role } / { admin } で判定する（関数が付ける）
+// - 「開場中」は events/{eid}.state で判定する。閉場すると購読中のものも止まる（7.4-4）
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---- 判定に使う関数 ------------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function claim(key) {
+      return request.auth.token.get(key, null);
+    }
+
+    // 管理者: admin クレーム＋TOTP 済みのトークンのみ（7.4-1）
+    function isAdmin() {
+      return signedIn()
+        && claim('admin') == true
+        && request.auth.token.firebase.get('sign_in_second_factor', null) == 'totp';
+    }
+
+    function isMember(eid) {
+      return signedIn() && claim('eid') == eid;
+    }
+
+    function hasRole(eid, role) {
+      return isMember(eid) && claim('role') == role;
+    }
+
+    function isVisitor(eid) {
+      return hasRole(eid, 'visitor');
+    }
+
+    function isStudentStaff(eid) {
+      return hasRole(eid, 'student');
+    }
+
+    function isFacultyStaff(eid) {
+      return hasRole(eid, 'faculty');
+    }
+
+    function isStaff(eid) {
+      return isStudentStaff(eid) || isFacultyStaff(eid);
+    }
+
+    function eventState(eid) {
+      return get(/databases/$(database)/documents/events/$(eid)).data.state;
+    }
+
+    function isOpen(eid) {
+      return eventState(eid) == 'open';
+    }
+
+    // スタッフは開場前から担当設定をするので scheduled でも読める。閉場後は読めない
+    function staffActive(eid) {
+      return isStaff(eid) && eventState(eid) in ['scheduled', 'open'];
+    }
+
+    function occupies(eid, slotId) {
+      return get(/databases/$(database)/documents/events/$(eid)/slots/$(slotId)).data.occupant.uid
+        == request.auth.uid;
+    }
+
+    // その枠の担当スタッフか（学生は占有者、教員相談の枠 'faculty' は教員スタッフ全員）。
+    // 枠 ID だけで判定するので、スタッフは where('slotId', '==', X) で整理券を一覧できる
+    function handlesSlot(eid, slotId) {
+      return staffActive(eid) && (
+        (slotId == 'faculty' && isFacultyStaff(eid))
+        || (slotId != 'faculty' && isStudentStaff(eid) && occupies(eid, slotId))
+      );
+    }
+
+    // ---- 既定: すべて拒否 ----------------------------------------------------
+
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // 7.4 検証用（P0 のみ。P1 で削除する）
-    match /verify/mfa {
-      allow read: if request.auth != null
-        && request.auth.token.firebase.sign_in_second_factor == 'totp';
-    }
-    match /verifyLive/{id} {
-      allow read: if request.auth != null
-        && get(/databases/$(database)/documents/events/e1).data.state == 'open';
+    // ---- events/{eid} 配下 --------------------------------------------------
+
+    match /events/{eid} {
+      // 自イベントの全員（閉場後も「閉場しました」を出すため状態は読める）
+      allow read: if isMember(eid) || isAdmin();
+
+      // 入場コード・スタッフコード: 関数のみ
+      match /secrets/{doc} {
+        allow read: if false;
+      }
+
+      match /slots/{slotId} {
+        allow read: if (isVisitor(eid) && isOpen(eid)) || staffActive(eid) || isAdmin();
+      }
+
+      match /board/{doc} {
+        allow read: if doc == 'public'
+          && ((isVisitor(eid) && isOpen(eid)) || staffActive(eid) || isAdmin());
+      }
+
+      match /queues/{slotId} {
+        allow read: if handlesSlot(eid, slotId) || isAdmin();
+      }
+
+      match /tickets/{ticketId} {
+        allow read: if (isVisitor(eid) && resource.data.visitorUid == request.auth.uid && isOpen(eid))
+          || handlesSlot(eid, resource.data.slotId)
+          || isAdmin();
+      }
+
+      match /visitors/{uid} {
+        allow read: if (isVisitor(eid) && request.auth.uid == uid) || isAdmin();
+      }
+
+      match /staff/{uid} {
+        allow read: if (isStaff(eid) && request.auth.uid == uid) || isAdmin();
+      }
+
+      match /auditLog/{id} {
+        allow read: if isAdmin();
+      }
+
+      match /stats/{date} {
+        allow read: if isAdmin();
+      }
     }
   }
 }
