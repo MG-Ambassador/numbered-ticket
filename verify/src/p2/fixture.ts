@@ -2,6 +2,7 @@
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { expect } from 'vitest';
 import {
@@ -13,6 +14,7 @@ import {
   type QueueDoc,
   type SlotDoc,
 } from '@nt/shared';
+import { computeBoardSlot } from '../../../functions/src/core/board.js';
 import type { Caller, Deps } from '../../../functions/src/core/context.js';
 
 export const PROJECT_ID = 'demo-numbered-ticket';
@@ -21,7 +23,8 @@ if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_
   throw new Error('Firestore・Auth の Emulator の中で実行すること（npm run test:functions）');
 }
 
-const app = getApps()[0] ?? initializeApp({ projectId: PROJECT_ID });
+export const BUCKET = `${PROJECT_ID}.appspot.com`;
+const app = getApps()[0] ?? initializeApp({ projectId: PROJECT_ID, storageBucket: BUCKET });
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
@@ -29,7 +32,7 @@ export const auth = getAuth(app);
 export const NOW = new Date('2027-03-20T02:00:00Z'); // 11:00 JST
 
 export function makeDeps(now: Date = NOW): Deps {
-  return { db, auth, rateLimitSecret: () => 'test-secret', now: () => now };
+  return { db, auth, rateLimitSecret: () => 'test-secret', now: () => now, bucket: () => getStorage(app).bucket() };
 }
 
 export const ENTRY_CODE = '0384712';
@@ -75,6 +78,8 @@ export async function seedEvent(opts: SeedOptions = {}): Promise<string> {
   batch.set(db.doc(paths.secretCodes(eid)), { entryCode: ENTRY_CODE, staffCode: STAFF_CODE, updatedAt: ts });
 
   const studentSlots = opts.studentSlots ?? [{ id: 's1' }];
+  // 管理者の準備（P2-3）と同じく、board も最初から作っておく
+  const boardSlots: Record<string, ReturnType<typeof computeBoardSlot>> = {};
   studentSlots.forEach((s, i) => {
     const occupied = s.occupied ?? true;
     const slot: SlotDoc = {
@@ -98,6 +103,7 @@ export async function seedEvent(opts: SeedOptions = {}): Promise<string> {
     };
     batch.set(db.doc(paths.slot(eid, s.id)), slot);
     batch.set(db.doc(paths.queue(eid, s.id)), queue);
+    boardSlots[s.id] = computeBoardSlot(event, slot, queue);
   });
 
   const booths = opts.facultyBooths ?? 3;
@@ -122,17 +128,19 @@ export async function seedEvent(opts: SeedOptions = {}): Promise<string> {
   };
   batch.set(db.doc(paths.slot(eid, FACULTY_SLOT_ID)), faculty);
   batch.set(db.doc(paths.queue(eid, FACULTY_SLOT_ID)), facultyQueue);
+  boardSlots[FACULTY_SLOT_ID] = computeBoardSlot(event, faculty, facultyQueue);
+  batch.set(db.doc(paths.board(eid)), { slots: boardSlots, paused: event.paused, updatedAt: ts });
   await batch.commit();
   return eid;
 }
 
 /** 匿名ログイン直後（クレームなし）の呼び出し元 */
 export function anonymous(uid: string, ip: string | null = '203.0.113.1'): Caller {
-  return { uid, provider: 'anonymous', eid: null, role: null, admin: false, ip };
+  return { uid, provider: 'anonymous', eid: null, role: null, admin: false, secondFactor: null, ip };
 }
 
 export function visitorCaller(uid: string, eid = 'e1'): Caller {
-  return { uid, provider: 'anonymous', eid, role: 'visitor', admin: false, ip: '203.0.113.1' };
+  return { uid, provider: 'anonymous', eid, role: 'visitor', admin: false, secondFactor: null, ip: '203.0.113.1' };
 }
 
 /** HttpsError の details.reason を確かめる */
@@ -153,4 +161,43 @@ export function reasonOf(e: unknown): string | null {
 export async function read<T>(path: string): Promise<T> {
   const snap = await db.doc(path).get();
   return snap.data() as T;
+}
+
+export function staffCaller(uid: string, role: 'student' | 'faculty', eid = 'e1'): Caller {
+  return { uid, provider: 'anonymous', eid, role, admin: false, secondFactor: null, ip: '203.0.113.1' };
+}
+
+/**
+ * seedEvent が作った担当に合わせてスタッフの記録を作る。
+ * 学生 `staff-<slotId>` は枠を占有済み、教員 `fac-<i>` はブース `F-<i+1>` を設定済み。
+ */
+export async function seedStaff(eid: string, entries: { uid: string; role: 'student' | 'faculty'; slotId?: string | null; booth?: string | null }[]): Promise<void> {
+  const batch = db.batch();
+  const ts = Timestamp.fromDate(NOW);
+  for (const e of entries) {
+    batch.set(db.doc(paths.staff(eid, e.uid)), {
+      role: e.role,
+      slotId: e.slotId ?? null,
+      booth: e.booth ?? null,
+      loggedInAt: ts,
+      lastSeenAt: ts,
+      expireAt: Timestamp.fromDate(new Date('2027-03-21T00:00:00Z')),
+    });
+  }
+  await batch.commit();
+}
+
+/** 来場者の入場記録を作る */
+export async function seedVisitors(eid: string, uids: string[]): Promise<void> {
+  const batch = db.batch();
+  const expireAt = Timestamp.fromDate(new Date('2027-03-21T00:00:00Z'));
+  for (const uid of uids) {
+    batch.set(db.doc(paths.visitor(eid, uid)), { enteredAt: Timestamp.fromDate(NOW), activeTicketId: null, expireAt });
+  }
+  await batch.commit();
+}
+
+/** 管理者（admin クレーム＋TOTP 済み） */
+export function adminCaller(uid = 'admin1'): Caller {
+  return { uid, provider: 'password', eid: null, role: null, admin: true, secondFactor: 'totp', ip: '203.0.113.9' };
 }

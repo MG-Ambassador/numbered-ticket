@@ -30,7 +30,8 @@ export type StaffRole = Exclude<Role, 'visitor'>;
  */
 export type AuthClaims =
   | { eid: string; role: Role; admin?: never }
-  | { admin: true; eid?: never; role?: never };
+  /** initial: 管理スクリプトで作った直後。画面は初回のパスワード変更と TOTP 登録を求め、済んだら completeSetup で外す */
+  | { admin: true; initial?: true; eid?: never; role?: never };
 
 // ---------------------------------------------------------------------------
 // events/{eventId}
@@ -136,7 +137,8 @@ export interface ServingEntry extends QueueEntry {
   state: Extract<TicketState, 'calling' | 'in_progress'>;
   /** 案内先のブース（学生は枠の位置、教員はスタッフのブース） */
   booth: string | null;
-  staffUid: string;
+  /** 対応しているスタッフ。管理者が担当を強制解除すると null（その列の担当なら誰でも引き継げる） */
+  staffUid: string | null;
   /** calling / in_progress になった時刻 */
   since: TimestampLike;
 }
@@ -300,6 +302,11 @@ export const AUDIT_ACTIONS = [
   'event.resume',
   'event.open',
   'event.close',
+  'event.create',
+  'event.update',
+  'slot.update',
+  'slot.import',
+  'slot.delete',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -307,7 +314,8 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export interface AuditLogDoc {
   at: TimestampLike;
   action: AuditAction;
-  actor: { uid: string; role: StaffRole | 'admin' };
+  /** system は定期処理（uid も 'system'） */
+  actor: { uid: string; role: StaffRole | 'admin' | 'system' };
   /** 対象（枠 ID など） */
   target: string | null;
   /** 変更前後など。個人を特定する情報は入れない */

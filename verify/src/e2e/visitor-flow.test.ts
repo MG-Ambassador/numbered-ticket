@@ -19,8 +19,10 @@ import {
   type EnterEventResponse,
   type IssueTicketRequest,
   type IssueTicketResponse,
+  type QueueDoc,
+  type StaffLoginRequest,
 } from '@nt/shared';
-import { ENTRY_CODE, PROJECT_ID, auth as adminAuth, clearFirestore, seedEvent } from '../p2/fixture.js';
+import { ENTRY_CODE, PROJECT_ID, STAFF_CODE, auth as adminAuth, clearFirestore, seedEvent } from '../p2/fixture.js';
 
 let app: FirebaseApp;
 
@@ -85,5 +87,41 @@ describe('来場者の一巡（Functions Emulator）', () => {
     // Emulator ではコードが auth/internal-error になり、関数のエラーはメッセージに入る（本番のコードは P4 で確認）
     expect(err?.message).toContain('sign-up is not allowed');
     await expect(adminAuth.getUserByEmail(email)).rejects.toMatchObject({ code: 'auth/user-not-found' });
+  });
+});
+
+describe('スタッフの一巡（Functions Emulator）', () => {
+  it('ログイン → 枠の占有 → 自分の列を読める → 来場者の発券 → 呼出', async () => {
+    await clearFirestore();
+    await seedEvent({ studentSlots: [{ id: 's1', occupied: false }] });
+
+    // スタッフ
+    const st = clients();
+    const { user } = await signInAnonymously(st.auth);
+    await httpsCallable<StaffLoginRequest>(st.fns, FUNCTION_NAMES.staffLogin)({ code: STAFF_CODE, role: 'student' });
+    await user.getIdToken(true);
+    await httpsCallable(st.fns, FUNCTION_NAMES.claimSlot)({ slotId: 's1' });
+    const queueRef = doc(st.db, paths.queue('e1', 's1'));
+    expect((await getDoc(queueRef)).data()).toMatchObject({ booths: [{ staffUid: user.uid }] });
+
+    // 来場者（別のアプリで）
+    const other = initializeApp({ apiKey: 'demo-key', projectId: PROJECT_ID, appId: 'demo-app' }, `e2e-v-${Date.now()}`);
+    try {
+      const vAuth = getAuth(other);
+      connectAuthEmulator(vAuth, `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`, { disableWarnings: true });
+      const vFns = getFunctions(other, REGION);
+      connectFunctionsEmulator(vFns, '127.0.0.1', 5001);
+      const v = await signInAnonymously(vAuth);
+      await httpsCallable(vFns, FUNCTION_NAMES.enterEvent)({ code: ENTRY_CODE });
+      await v.user.getIdToken(true);
+      await httpsCallable(vFns, FUNCTION_NAMES.issueTicket)({ slotId: 's1', grade: null, themes: [], memo: null });
+    } finally {
+      await deleteApp(other);
+    }
+
+    const called = await httpsCallable(st.fns, FUNCTION_NAMES.callNext)();
+    expect(called.data).toMatchObject({ number: 101 });
+    const queue = (await getDoc(queueRef)).data() as QueueDoc;
+    expect(queue.serving).toMatchObject([{ number: 101, state: 'calling', staffUid: user.uid }]);
   });
 });

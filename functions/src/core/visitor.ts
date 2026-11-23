@@ -1,14 +1,12 @@
 // 来場者の関数（V-01 入場、V-03 発券、V-05「いま向かいます」、V-06 キャンセル）。
 // 書き込みはすべてトランザクションで行い、待ち上限・二重発券をサーバ側で防ぐ。
 import { timingSafeEqual } from 'node:crypto';
-import { Timestamp, type DocumentReference, type Transaction } from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import {
-  ACTIVE_TICKET_STATES,
   CANCELABLE_TICKET_STATES,
   DEFAULTS,
   GRADES,
   RATE_LIMITS,
-  TTL_AFTER_CLOSE_HOURS,
   paths,
   type EnterEventRequest,
   type EnterEventResponse,
@@ -24,27 +22,19 @@ import {
   type VisitorDoc,
 } from '@nt/shared';
 import { writeBoardSlot } from './board.js';
+import { SLOT_ID, expireAtFor, getOrFail, isActive, normalizeCode, ticketIdOf, runTx } from './common.js';
 import { requireAnonymous, requireRole, type Caller, type Deps } from './context.js';
 import { fail } from './errors.js';
 import { findActiveEvent } from './event.js';
 import { assertTransition } from './transitions.js';
 import { rateLimitRef, readRateLimit, recordFailure, retryAfterSeconds } from './rateLimit.js';
 
-const SLOT_ID = /^[A-Za-z0-9_-]{1,64}$/;
-const TICKET_ID = /^[A-Za-z0-9]{1,64}$/;
-
-export function expireAtFor(event: EventDoc): Timestamp {
-  return Timestamp.fromMillis(event.closesAt.toMillis() + TTL_AFTER_CLOSE_HOURS * 3600_000);
-}
-
 /** 7桁の数字に正規化する（区切りのハイフン・空白は取り除く）。形が違えば null */
 export function normalizeEntryCode(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const code = raw.replace(/[\s-]/g, '');
-  return /^\d{7}$/.test(code) ? code : null;
+  return normalizeCode(raw, 7);
 }
 
-function sameCode(a: string, b: string): boolean {
+export function sameCode(a: string, b: string): boolean {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
   return x.length === y.length && timingSafeEqual(x, y);
@@ -65,7 +55,7 @@ export async function enterEvent(deps: Deps, caller: Caller | null, req: EnterEv
   const ipRef = rateLimitRef(db, eid, secret, 'entryIp', me.ip ?? 'unknown');
   const code = normalizeEntryCode(req?.code);
 
-  const result = await db.runTransaction(async (tx) => {
+  const result = await runTx(db, async (tx) => {
     const device = await readRateLimit(tx, deviceRef, RATE_LIMITS.entryPerDevice, now);
     const ip = await readRateLimit(tx, ipRef, RATE_LIMITS.entryPerIp, now);
     const wait = Math.max(retryAfterSeconds(device, now) ?? 0, retryAfterSeconds(ip, now) ?? 0);
@@ -136,16 +126,6 @@ export function validateAnswers(event: EventDoc, req: IssueTicketRequest): Answe
   return { grade, themes, memo };
 }
 
-async function getOrFail<T>(tx: Transaction, ref: DocumentReference): Promise<T> {
-  const snap = await tx.get(ref);
-  if (!snap.exists) fail('not-found', 'notFound');
-  return snap.data() as T;
-}
-
-function isActive(state: TicketState): boolean {
-  return (ACTIVE_TICKET_STATES as readonly TicketState[]).includes(state);
-}
-
 export async function issueTicket(deps: Deps, caller: Caller | null, req: IssueTicketRequest): Promise<IssueTicketResponse> {
   const me = requireRole(caller, 'visitor');
   const slotId = req?.slotId;
@@ -159,7 +139,7 @@ export async function issueTicket(deps: Deps, caller: Caller | null, req: IssueT
   const queueRef = db.doc(paths.queue(eid, slotId));
   const visitorRef = db.doc(paths.visitor(eid, me.uid));
 
-  return db.runTransaction(async (tx) => {
+  return runTx(db, async (tx) => {
     const event = await getOrFail<EventDoc>(tx, eventRef);
     const slot = await getOrFail<SlotDoc>(tx, slotRef);
     const queue = await getOrFail<QueueDoc>(tx, queueRef);
@@ -221,12 +201,6 @@ export async function issueTicket(deps: Deps, caller: Caller | null, req: IssueT
 // V-06 キャンセル
 // ---------------------------------------------------------------------------
 
-function ticketIdOf(req: TicketRequest): string {
-  const id = req?.ticketId;
-  if (typeof id !== 'string' || !TICKET_ID.test(id)) fail('invalid-argument', 'invalidInput');
-  return id;
-}
-
 export async function cancelTicket(deps: Deps, caller: Caller | null, req: TicketRequest): Promise<void> {
   const me = requireRole(caller, 'visitor');
   const ticketId = ticketIdOf(req);
@@ -235,7 +209,7 @@ export async function cancelTicket(deps: Deps, caller: Caller | null, req: Ticke
   const now = deps.now();
   const ticketRef = db.doc(paths.ticket(eid, ticketId));
 
-  await db.runTransaction(async (tx) => {
+  await runTx(db, async (tx) => {
     const ticket = await getOrFail<TicketDoc>(tx, ticketRef);
     if (ticket.visitorUid !== me.uid) fail('not-found', 'notFound');
     if (!(CANCELABLE_TICKET_STATES as readonly TicketState[]).includes(ticket.state)) {
@@ -280,7 +254,7 @@ export async function markArriving(deps: Deps, caller: Caller | null, req: Ticke
   const { db } = deps;
   const ticketRef = db.doc(paths.ticket(me.eid, ticketId));
 
-  await db.runTransaction(async (tx) => {
+  await runTx(db, async (tx) => {
     const ticket = await getOrFail<TicketDoc>(tx, ticketRef);
     if (ticket.visitorUid !== me.uid) fail('not-found', 'notFound');
     if (ticket.state !== 'calling') fail('failed-precondition', 'invalidState');

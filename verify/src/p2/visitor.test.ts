@@ -16,6 +16,8 @@ import {
 import { computeBoardSlot } from '../../../functions/src/core/board.js';
 import { clientIp } from '../../../functions/src/core/context.js';
 import { isAnonymousSignUp } from '../../../functions/src/core/auth.js';
+import { runTx } from '../../../functions/src/core/common.js';
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as visitor from '../../../functions/src/core/visitor.js';
 import {
   ENTRY_CODE,
@@ -29,6 +31,7 @@ import {
   read,
   reasonOf,
   seedEvent,
+  seedVisitors,
   visitorCaller,
 } from './fixture.js';
 
@@ -36,16 +39,6 @@ const deps = makeDeps();
 
 function req(slotId: string, over: Partial<IssueTicketRequest> = {}): IssueTicketRequest {
   return { slotId, grade: '高校3年', themes: ['入試'], memo: '指定校推薦について', ...over };
-}
-
-async function seedVisitors(eid: string, uids: string[]): Promise<void> {
-  const batch = db.batch();
-  const expireAt = Timestamp.fromDate(new Date('2027-03-21T00:00:00Z'));
-  for (const uid of uids) {
-    const doc: VisitorDoc = { enteredAt: Timestamp.fromDate(NOW), activeTicketId: null, expireAt };
-    batch.set(db.doc(paths.visitor(eid, uid)), doc);
-  }
-  await batch.commit();
 }
 
 beforeEach(async () => {
@@ -86,8 +79,8 @@ describe('V-01 入場コード照合', () => {
   it('匿名ログイン以外は拒否する', async () => {
     await seedEvent();
     const caller = { ...anonymous('pw-user'), provider: 'password' };
-    await expectReason(visitor.enterEvent(deps, caller, { code: ENTRY_CODE }), 'notAnonymous');
-    await expectReason(visitor.enterEvent(deps, null, { code: ENTRY_CODE }), 'notAnonymous');
+    await expectReason(visitor.enterEvent(deps, caller, { code: ENTRY_CODE }), 'forbidden');
+    await expectReason(visitor.enterEvent(deps, null, { code: ENTRY_CODE }), 'forbidden');
   });
 
   it('開場前・開場中のイベントがなければ noEvent', async () => {
@@ -242,10 +235,10 @@ describe('V-03 発券', () => {
 
   it('来場者のクレームがなければ拒否、入場記録がなければ notFound', async () => {
     await seedEvent();
-    await expectReason(visitor.issueTicket(deps, anonymous('noclaim'), req('s1')), 'notAnonymous');
+    await expectReason(visitor.issueTicket(deps, anonymous('noclaim'), req('s1')), 'forbidden');
     await expectReason(
       visitor.issueTicket(deps, { ...visitorCaller('st'), role: 'student' }, req('s1')),
-      'notAnonymous',
+      'forbidden',
     );
     await expectReason(visitor.issueTicket(deps, visitorCaller('never-entered'), req('s1')), 'notFound');
   });
@@ -351,5 +344,25 @@ describe('部品', () => {
     expect(isAnonymousSignUp({ providerData: [{ providerId: 'password' }], email: 'a@example.com' } as never)).toBe(false);
     expect(isAnonymousSignUp({ providerData: [], email: 'a@example.com' } as never)).toBe(false);
     expect(isAnonymousSignUp(undefined)).toBe(false);
+  });
+
+  it('トランザクションの再試行: 競合は試し直し、満員などの HttpsError はそのまま返す', async () => {
+    const fake = (errors: unknown[]) => {
+      let n = 0;
+      return { runTransaction: async () => { const e = errors[n++]; if (e) throw e; return 'ok'; }, calls: () => n } as never as { runTransaction: () => Promise<string>; calls: () => number };
+    };
+    const closed = Object.assign(new Error('3 INVALID_ARGUMENT: Transaction is invalid or closed.'), { code: 3 });
+    const aborted = Object.assign(new Error('10 ABORTED'), { code: 10 });
+    const f1 = fake([closed, aborted]);
+    await expect(runTx(f1 as never, async () => 'x')).resolves.toBe('ok');
+    expect(f1.calls()).toBe(3);
+
+    await expectReason(runTx(fake([aborted, aborted, aborted, aborted]) as never, async () => 'x'), 'contention');
+    const full = new HttpsError('failed-precondition', 'full', { reason: 'full' });
+    const f2 = fake([full]);
+    await expectReason(runTx(f2 as never, async () => 'x'), 'full');
+    expect(f2.calls()).toBe(1);
+    const other = Object.assign(new Error('7 PERMISSION_DENIED'), { code: 7 });
+    await expect(runTx(fake([other]) as never, async () => 'x')).rejects.toBe(other);
   });
 });

@@ -63,3 +63,34 @@ export function writeBoardSlot(
     { merge: true },
   );
 }
+
+/** rebuildBoard に渡す、このトランザクションでまだ書いていない枠の内容。null は削除 */
+export type BoardOverrides = Map<string, { slot: SlotDoc; queue: QueueDoc } | null>;
+
+/**
+ * board/public を全枠ぶん作り直す。全体停止・相談時間の変更・枠の追加と削除のときに使う。
+ * 全枠の slots と queues を読むので、当日の頻繁な操作には使わない。
+ * 読み取りを含むので、トランザクションの書き込みより前に呼ぶこと（Firestore は読み→書きの順しか許さない）。
+ */
+export async function rebuildBoard(
+  tx: Transaction,
+  db: Firestore,
+  eid: string,
+  event: EventDoc,
+  now: Date,
+  overrides: BoardOverrides = new Map(),
+): Promise<void> {
+  const [slots, queues] = await Promise.all([tx.get(db.collection(paths.slots(eid))), tx.get(db.collection(`events/${eid}/queues`))]);
+  const merged = new Map<string, { slot?: SlotDoc; queue?: QueueDoc }>();
+  for (const d of slots.docs) merged.set(d.id, { ...merged.get(d.id), slot: d.data() as SlotDoc });
+  for (const d of queues.docs) merged.set(d.id, { ...merged.get(d.id), queue: d.data() as QueueDoc });
+  for (const [id, v] of overrides) {
+    if (v === null) merged.delete(id);
+    else merged.set(id, v);
+  }
+  const out: Record<string, BoardSlot> = {};
+  for (const [id, { slot, queue }] of merged) {
+    if (slot && queue) out[id] = computeBoardSlot(event, slot, queue);
+  }
+  tx.set(db.doc(paths.board(eid)), { slots: out, paused: event.paused, updatedAt: Timestamp.fromDate(now) });
+}
