@@ -7,7 +7,8 @@
     "test": "vitest run src/p1-rules.test.ts",
     "test:functions": "vitest run src/p2",
     "test:e2e": "vitest run src/e2e",
-    "verify": "vitest run"
+    "verify": "vitest run",
+    "test:unit": "vitest run src/p3"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
