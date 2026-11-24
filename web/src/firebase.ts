@@ -1,15 +1,15 @@
-import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';
-import { connectFirestoreEmulator, initializeFirestore, memoryLocalCache, type Firestore } from 'firebase/firestore';
+import { connectFirestoreEmulator, getFirestore, initializeFirestore, memoryLocalCache, type Firestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
 import { REGION } from '@nt/shared';
 
 // 本番の設定値は P4 で .env に入れる。Emulator では demo プロジェクトを使う。
-const useEmulator = import.meta.env.DEV || import.meta.env.VITE_USE_EMULATOR === 'true';
+export const useEmulator = import.meta.env.DEV || import.meta.env.VITE_USE_EMULATOR === 'true';
 const projectId = import.meta.env.VITE_FB_PROJECT_ID ?? 'demo-numbered-ticket';
 
-const config = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FB_API_KEY ?? 'demo-key',
   authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN ?? `${projectId}.firebaseapp.com`,
   projectId,
@@ -36,13 +36,15 @@ const cache = new Map<Surface, Clients>();
 export function clients(surface: Surface): Clients {
   const hit = cache.get(surface);
   if (hit) return hit;
-  const app = initializeApp(config, surface);
+  // 開発中のホットリロードでこのモジュールが読み直されたときは、作ってあるアプリをそのまま使う
+  const existing = getApps().find((a) => a.name === surface);
+  const app = existing ?? initializeApp(firebaseConfig, surface);
   const auth = getAuth(app);
   // 設計書 4章「SDK はメモリキャッシュのみ」
-  const db = initializeFirestore(app, { localCache: memoryLocalCache() });
+  const db = existing ? getFirestore(app) : initializeFirestore(app, { localCache: memoryLocalCache() });
   const functions = getFunctions(app, REGION);
   const storage = getStorage(app);
-  if (useEmulator) {
+  if (useEmulator && !existing) {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     connectFunctionsEmulator(functions, '127.0.0.1', 5001);

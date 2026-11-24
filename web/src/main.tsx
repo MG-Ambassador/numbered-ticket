@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AdminApp } from './admin/AdminApp';
 import { usePath } from './lib/hooks';
 import { StaffApp } from './staff/StaffApp';
 import { VisitorApp } from './visitor/VisitorApp';
@@ -9,13 +10,7 @@ import './styles.css';
 function App() {
   const path = usePath();
   if (path.startsWith('/staff')) return <StaffApp />;
-  if (path.startsWith('/admin')) {
-    return (
-      <main className="page">
-        <p className="p">管理者の画面は準備中です（P3 の後半で作ります）。</p>
-      </main>
-    );
-  }
+  if (path.startsWith('/admin')) return <AdminApp />;
   return <VisitorApp />;
 }
 

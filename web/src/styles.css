@@ -133,6 +133,13 @@ legend { padding: 0; margin-bottom: 8px; }
 @keyframes up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
 .divider { height: 1px; background: var(--p-rule); }
 
+/* 管理画面の表 */
+.table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.table th, .table td { text-align: left; vertical-align: middle; padding: 8px 10px; border-bottom: 1px solid var(--p-rule); }
+.table thead th { font-size: 13px; font-weight: 500; color: var(--p-ink-soft); white-space: nowrap; }
+.table tbody th { font-weight: 500; white-space: nowrap; }
+.table .win { width: 44px; height: 52px; font-size: 16px; padding-bottom: 6px; }
+
 /* 呼出（V-05 全画面バナー） */
 .call { position: fixed; inset: 0; z-index: 10; background: var(--p-ink); color: var(--p-raised); padding: 24px 16px calc(28px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; overflow-y: auto; }
 .call > * { width: 100%; max-width: 448px; }

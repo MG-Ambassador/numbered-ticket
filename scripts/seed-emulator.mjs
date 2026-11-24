@@ -7,8 +7,11 @@
 // - 学生枠 5 つ（すべて担当なし＝準備中）と教員相談の枠
 // - 開場時刻は今の1時間前、閉場時刻は今の6時間後
 // - --reset で Firestore の中身を全部消してから作る
+// - 管理者 admin@example.com（パスワード dev-admin-password）。Emulator は TOTP に対応していないので、
+//   初回設定（initial クレーム）なしで作る。管理画面は Emulator のときだけ TOTP を省略する（web/src/admin/session.ts）
 // 本番のイベント作成は管理画面（adminApi の createEvent）で行う。ここでは board も含めて直接書く。
 import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
 const PROJECT_ID = 'demo-numbered-ticket';
@@ -109,6 +112,12 @@ board.faculty = preparing('faculty', 40);
 batch.set(db.doc(`events/${EID}/board/public`), { slots: board, paused: false, updatedAt: ts });
 await batch.commit();
 
+const ADMIN_EMAIL = 'admin@example.com';
+const auth = getAuth();
+const admin = await auth.getUserByEmail(ADMIN_EMAIL).catch(() => auth.createUser({ email: ADMIN_EMAIL, password: 'dev-admin-password', emailVerified: true }));
+await auth.setCustomUserClaims(admin.uid, { admin: true });
+
 console.log(`イベント ${EID} を作りました（${state}）`);
 console.log('  入場コード   038-4712   → http://localhost:5173/#code=0384712');
 console.log('  スタッフコード 0384-7125 → http://localhost:5173/staff');
+console.log('  管理者 admin@example.com / dev-admin-password → http://localhost:5173/admin');
