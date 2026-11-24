@@ -1,30 +1,22 @@
-import { StrictMode, useState } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { signInAnonymously } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from './firebase';
+import { usePath } from './lib/hooks';
+import { StaffApp } from './staff/StaffApp';
+import { VisitorApp } from './visitor/VisitorApp';
+import './styles.css';
 
-// P0 の疎通確認用画面。P3 で入場ゲート等に置き換える。
+// 設計書 5.2 の画面一覧: / ・ /slots ・ /ticket は来場者、/staff はスタッフ、/admin は管理者
 function App() {
-  const [result, setResult] = useState<string>('未実行');
-
-  async function check() {
-    try {
-      const cred = await signInAnonymously(auth);
-      const res = await httpsCallable(functions, 'verifyIp')();
-      setResult(JSON.stringify({ uid: cred.user.uid, ...(res.data as object) }, null, 2));
-    } catch (e) {
-      setResult(`エラー: ${(e as Error).message}`);
-    }
+  const path = usePath();
+  if (path.startsWith('/staff')) return <StaffApp />;
+  if (path.startsWith('/admin')) {
+    return (
+      <main className="page">
+        <p className="p">管理者の画面は準備中です（P3 の後半で作ります）。</p>
+      </main>
+    );
   }
-
-  return (
-    <main style={{ fontSize: 16, padding: 16, fontFamily: 'system-ui, sans-serif' }}>
-      <h1>疎通確認（P0）</h1>
-      <button onClick={check}>匿名ログイン → verifyIp を呼ぶ</button>
-      <pre data-testid="result">{result}</pre>
-    </main>
-  );
+  return <VisitorApp />;
 }
 
 createRoot(document.getElementById('root')!).render(

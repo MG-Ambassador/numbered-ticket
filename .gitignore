@@ -8,3 +8,4 @@ lib/
 !.env.example
 .firebase/
 *.tsbuildinfo
+!web/src/lib/

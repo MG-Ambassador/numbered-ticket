@@ -4,6 +4,7 @@
 export * from './model.js';
 export * from './paths.js';
 export * from './api.js';
+export * from './display.js';
 
 export const REGION = 'asia-northeast1';
 
