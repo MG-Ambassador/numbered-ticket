@@ -16,7 +16,8 @@
     "test:unit": "npm run build -w shared && npm run test:unit -w verify",
     "test:functions": "npm run build -w shared && firebase emulators:exec --only firestore,auth,storage \"npm run test:functions -w verify\"",
     "test:e2e": "npm run build -w shared && npm run build -w functions && firebase emulators:exec --only firestore,auth,functions \"npm run test:e2e -w verify\"",
-    "verify": "npm run build -w shared && npm run build -w functions && firebase emulators:exec \"npm run verify -w verify\""
+    "verify": "npm run build -w shared && npm run build -w functions && firebase emulators:exec \"npm run verify -w verify\"",
+    "test:load": "npm run build -w shared && npm run build -w functions && firebase emulators:exec --only firestore,auth,functions \"npm run test:load -w verify\""
   },
   "devDependencies": {
     "firebase-admin": "^14.5.1"
