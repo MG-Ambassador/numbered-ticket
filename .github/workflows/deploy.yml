@@ -1,8 +1,11 @@
 # main への push（とその手動実行）で、テストを通してから oc-ticket-2027 にデプロイする。
+# PR ではテストだけを流す（デプロイしない）。
 # 認証は Workload Identity Federation（鍵ファイルなし）。準備は scripts/setup-wif.sh と docs/p4-integration.md
 name: deploy
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -12,9 +15,10 @@ on:
         default: hosting,firestore,storage,functions
         required: true
 
+# 同じ PR に続けて push したら、古いテストは止める（main は止めない）
 concurrency:
-  group: deploy-production
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -43,8 +47,12 @@ jobs:
 
   deploy:
     needs: test
-    # WIF の準備（scripts/setup-wif.sh とリポジトリ変数）が済むまではデプロイしない
-    if: vars.GCP_WIF_PROVIDER != ''
+    # PR ではデプロイしない。WIF の準備（scripts/setup-wif.sh とリポジトリ変数）が済むまでもデプロイしない
+    if: github.event_name != 'pull_request' && vars.GCP_WIF_PROVIDER != ''
+    # デプロイは1つずつ（途中で止めない）
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production

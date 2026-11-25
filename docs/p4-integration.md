@@ -79,7 +79,7 @@ npm run test:load          # Emulator（Firestore・Auth・Functions）で 150 �
 
 ## 3. デプロイ（GitHub Actions＋WIF）
 
-`.github/workflows/deploy.yml`: main への push で、テスト（ユニット・ルール・関数・E2E・画面のビルド）を通してから `firebase deploy --project prod` する。手動実行（workflow_dispatch）では `--only` の対象を選べる。
+`.github/workflows/deploy.yml`: PR ではテストだけを流す。main への push で、テスト（ユニット・ルール・関数・E2E・画面のビルド）を通してから `firebase deploy --project prod` する。手動実行（workflow_dispatch）では `--only` の対象を選べる。
 
 準備（1回だけ）:
 
