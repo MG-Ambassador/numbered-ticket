@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
-import { defineSecret } from 'firebase-functions/params';
+import { defineBoolean, defineInt, defineSecret } from 'firebase-functions/params';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
 import { beforeUserCreated } from 'firebase-functions/v2/identity';
@@ -23,6 +23,17 @@ setGlobalOptions({ region: REGION, maxInstances: 10 });
 const RATE_LIMIT_SECRET = defineSecret('RATE_LIMIT_SECRET');
 const EMULATOR_SECRET = 'emulator-only-rate-limit-secret';
 const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+
+/**
+ * App Check の強制（設計書 4章）。functions/.env.<プロジェクト> で切り替える（docs/p4-integration.md）。
+ * 既定は false: 画面に App Check を入れてトークンが付くのを確かめてから true にする。負荷テストの間も false
+ */
+const ENFORCE_APP_CHECK = defineBoolean('ENFORCE_APP_CHECK', { default: false });
+/**
+ * 発券・呼出を常駐させる台数（設計書 4章「開催日は minInstances 1」）。
+ * 待機中も課金されるので、開催日（とリハーサル・負荷テスト）の前に 1 にしてデプロイし、終わったら 0 に戻す
+ */
+const HOT_INSTANCES = defineInt('HOT_INSTANCES', { default: 0 });
 
 function rateLimitSecret(): string {
   const value = RATE_LIMIT_SECRET.value();
@@ -53,16 +64,22 @@ function callerOf(req: CallableRequest): Caller | null {
 
 type Handler<Req, Res> = (deps: Deps, caller: Caller | null, req: Req) => Promise<Res>;
 
-function callable<Req, Res>(handler: Handler<Req, Res>, opts: { secret?: boolean } = {}) {
-  return onCall<Req, Promise<Res>>({ secrets: opts.secret ? [RATE_LIMIT_SECRET] : [] }, (req) =>
-    handler(deps(), callerOf(req), req.data),
+function callable<Req, Res>(handler: Handler<Req, Res>, opts: { secret?: boolean; hot?: boolean } = {}) {
+  return onCall<Req, Promise<Res>>(
+    {
+      secrets: opts.secret ? [RATE_LIMIT_SECRET] : [],
+      enforceAppCheck: ENFORCE_APP_CHECK,
+      ...(opts.hot ? { minInstances: HOT_INSTANCES } : {}),
+    },
+    (req) =>
+      handler(deps(), callerOf(req), req.data),
   );
 }
 
 // ---- 来場者 -------------------------------------------------------------------
 
 export const enterEvent = callable(visitor.enterEvent, { secret: true });
-export const issueTicket = callable(visitor.issueTicket);
+export const issueTicket = callable(visitor.issueTicket, { hot: true });
 export const cancelTicket = callable(visitor.cancelTicket);
 export const markArriving = callable(visitor.markArriving);
 
@@ -73,7 +90,7 @@ export const claimSlot = callable(staff.claimSlot);
 export const setBooth = callable(staff.setBooth);
 export const releaseAssignment = callable(staff.releaseAssignment);
 export const heartbeat = callable(staff.heartbeat);
-export const callNext = callable(staff.callNext);
+export const callNext = callable(staff.callNext, { hot: true });
 export const startConsult = callable(staff.startConsult);
 export const completeConsult = callable(staff.completeConsult);
 export const skipTicket = callable(staff.skipTicket);

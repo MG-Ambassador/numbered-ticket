@@ -1,11 +1,13 @@
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore, initializeFirestore, memoryLocalCache, type Firestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
 import { REGION } from '@nt/shared';
 
-// 本番の設定値は P4 で .env に入れる。Emulator では demo プロジェクトを使う。
+// 本番の設定値はビルド時の環境変数（VITE_FB_*）で渡す（GitHub Actions の変数。docs/p4-integration.md）。
+// Emulator では demo プロジェクトを使う。
 export const useEmulator = import.meta.env.DEV || import.meta.env.VITE_USE_EMULATOR === 'true';
 const projectId = import.meta.env.VITE_FB_PROJECT_ID ?? 'demo-numbered-ticket';
 
@@ -31,6 +33,9 @@ export interface Clients {
   storage: FirebaseStorage;
 }
 
+/** App Check（reCAPTCHA Enterprise）のサイトキー。未設定なら App Check を使わない（Emulator・強制前） */
+const appCheckSiteKey: string | undefined = import.meta.env.VITE_APPCHECK_SITE_KEY || undefined;
+
 const cache = new Map<Surface, Clients>();
 
 export function clients(surface: Surface): Clients {
@@ -39,6 +44,10 @@ export function clients(surface: Surface): Clients {
   // 開発中のホットリロードでこのモジュールが読み直されたときは、作ってあるアプリをそのまま使う
   const existing = getApps().find((a) => a.name === surface);
   const app = existing ?? initializeApp(firebaseConfig, surface);
+  // App Check はほかのサービスより先に初期化する（最初の要求からトークンを付けるため）
+  if (!existing && !useEmulator && appCheckSiteKey) {
+    initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey), isTokenAutoRefreshEnabled: true });
+  }
   const auth = getAuth(app);
   // 設計書 4章「SDK はメモリキャッシュのみ」
   const db = existing ? getFirestore(app) : initializeFirestore(app, { localCache: memoryLocalCache() });

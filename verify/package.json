@@ -8,7 +8,8 @@
     "test:functions": "vitest run src/p2",
     "test:e2e": "vitest run src/e2e",
     "verify": "vitest run",
-    "test:unit": "vitest run src/p3"
+    "test:unit": "vitest run src/p3",
+    "test:load": "vitest run --config vitest.load.config.ts"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

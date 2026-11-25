@@ -1,0 +1,83 @@
+# main への push（とその手動実行）で、テストを通してから oc-ticket-2027 にデプロイする。
+# 認証は Workload Identity Federation（鍵ファイルなし）。準備は scripts/setup-wif.sh と docs/p4-integration.md
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      only:
+        description: firebase deploy --only に渡す対象
+        default: hosting,firestore,storage,functions
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm install -g firebase-tools@15
+      - run: npm run test:unit
+      - run: npm run test:rules
+      - run: npm run test:functions
+      - run: npm run test:e2e
+      - run: npm run build -w web
+
+  deploy:
+    needs: test
+    # WIF の準備（scripts/setup-wif.sh とリポジトリ変数）が済むまではデプロイしない
+    if: vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # WIF の OIDC トークン
+    env:
+      VITE_FB_API_KEY: ${{ vars.VITE_FB_API_KEY }}
+      VITE_FB_AUTH_DOMAIN: ${{ vars.VITE_FB_AUTH_DOMAIN }}
+      VITE_FB_PROJECT_ID: ${{ vars.VITE_FB_PROJECT_ID }}
+      VITE_FB_STORAGE_BUCKET: ${{ vars.VITE_FB_STORAGE_BUCKET }}
+      VITE_FB_APP_ID: ${{ vars.VITE_FB_APP_ID }}
+      VITE_APPCHECK_SITE_KEY: ${{ vars.VITE_APPCHECK_SITE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install -g firebase-tools@15
+      - name: 本番の設定値がそろっているか
+        run: |
+          for v in VITE_FB_API_KEY VITE_FB_AUTH_DOMAIN VITE_FB_PROJECT_ID VITE_FB_STORAGE_BUCKET VITE_FB_APP_ID; do
+            if [ -z "${!v}" ]; then echo "::error::リポジトリ変数 $v が未設定"; exit 1; fi
+          done
+          test "$VITE_FB_PROJECT_ID" = oc-ticket-2027
+      - run: npm run build
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - name: firebase deploy
+        env:
+          ONLY: ${{ github.event.inputs.only || 'hosting,firestore,storage,functions' }}
+        run: firebase deploy --project prod --only "$ONLY" --non-interactive --force

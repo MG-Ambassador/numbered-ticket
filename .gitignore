@@ -9,3 +9,6 @@ lib/
 .firebase/
 *.tsbuildinfo
 !web/src/lib/
+verify/out/
+!functions/.env.oc-ticket-2027
+!functions/.env.demo-numbered-ticket
