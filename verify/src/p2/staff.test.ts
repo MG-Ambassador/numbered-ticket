@@ -16,8 +16,9 @@ import {
 import * as staff from '../../../functions/src/core/staff.js';
 import * as visitor from '../../../functions/src/core/visitor.js';
 import {
+  FACULTY_CODE,
   NOW,
-  STAFF_CODE,
+  SLOT_CODES,
   anonymous,
   auth,
   clearFirestore,
@@ -69,45 +70,71 @@ beforeEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe('S-01 ログイン', () => {
-  it('正しいコードでスタッフの記録を作り、クレーム { eid, role } を付ける', async () => {
-    await seedEvent();
+  it('学生枠のコードでログインすると role: student になり、空いていればその枠をそのまま担当する', async () => {
+    await seedEvent({ studentSlots: [{ id: 's1' }, { id: 's2', occupied: false }] });
     const uid = `st-${Date.now()}`;
     await auth.createUser({ uid });
-    const res = await staff.staffLogin(deps, anonymous(uid), { code: '0384-7125', role: 'student' });
-    expect(res).toEqual({ eid: 'e1', slotId: null, booth: null });
+    const res = await staff.staffLogin(deps, anonymous(uid), { code: `${SLOT_CODES.s2!.slice(0, 4)}-${SLOT_CODES.s2!.slice(4)}` });
+    expect(res).toEqual({ eid: 'e1', role: 'student', slotId: 's2', booth: null });
     expect((await auth.getUser(uid)).customClaims).toEqual({ eid: 'e1', role: 'student' });
-    expect(await read<StaffDoc>(paths.staff('e1', uid))).toMatchObject({ role: 'student', slotId: null });
+    expect(await read<StaffDoc>(paths.staff('e1', uid))).toMatchObject({ role: 'student', allowedSlotId: 's2', slotId: 's2' });
+    expect((await read<SlotDoc>(paths.slot('e1', 's2'))).occupant?.uid).toBe(uid);
+    expect(await boardOf('s2')).toMatchObject({ status: 'available', activeBooths: 1 });
+  });
+
+  it('枠が別の端末で担当中なら、ログインはできるが担当は待ち（ほかの枠は取れない）', async () => {
+    await seedEvent({ studentSlots: [{ id: 's1' }, { id: 's2', occupied: false }] });
+    const uid = `st-busy-${Date.now()}`;
+    await auth.createUser({ uid });
+    await expect(staff.staffLogin(deps, anonymous(uid), { code: SLOT_CODES.s1! })).resolves.toMatchObject({ role: 'student', slotId: null });
+    expect(await read<StaffDoc>(paths.staff('e1', uid))).toMatchObject({ allowedSlotId: 's1', slotId: null });
+    expect((await read<SlotDoc>(paths.slot('e1', 's1'))).occupant?.uid).toBe('staff-s1');
+    const me = staffCaller(uid, 'student');
+    await expectReason(staff.claimSlot(deps, me, { slotId: 's1' }), 'slotTaken');
+    await expectReason(staff.claimSlot(deps, me, { slotId: 's2' }), 'forbidden');
+  });
+
+  it('教員のコードでログインすると role: faculty。ブースはこのあと設定する', async () => {
+    await seedEvent();
+    const uid = `fac-${Date.now()}`;
+    await auth.createUser({ uid });
+    await expect(staff.staffLogin(deps, anonymous(uid), { code: FACULTY_CODE })).resolves.toEqual({ eid: 'e1', role: 'faculty', slotId: null, booth: null });
+    expect((await auth.getUser(uid)).customClaims).toEqual({ eid: 'e1', role: 'faculty' });
+    expect(await read<StaffDoc>(paths.staff('e1', uid))).toMatchObject({ role: 'faculty', allowedSlotId: null, booth: null });
   });
 
   it('端末ごと 3回/10分', async () => {
     await seedEvent();
     for (let i = 0; i < 3; i++) {
-      await expectReason(staff.staffLogin(deps, anonymous('st-x'), { code: '00000000', role: 'faculty' }), 'wrongCode');
+      await expectReason(staff.staffLogin(deps, anonymous('st-x'), { code: '00000000' }), 'wrongCode');
     }
-    await expectReason(staff.staffLogin(deps, anonymous('st-x'), { code: STAFF_CODE, role: 'faculty' }), 'rateLimited');
+    await expectReason(staff.staffLogin(deps, anonymous('st-x'), { code: FACULTY_CODE }), 'rateLimited');
   });
 
-  it('入場コード（来場者用）ではログインできない、役割は student / faculty のみ', async () => {
+  it('入場コード（来場者用）ではログインできない', async () => {
     await seedEvent();
-    await expectReason(staff.staffLogin(deps, anonymous('st-y'), { code: '0384712', role: 'student' }), 'wrongCode');
-    await expectReason(staff.staffLogin(deps, anonymous('st-y'), { code: STAFF_CODE, role: 'visitor' as never }), 'invalidInput');
+    await expectReason(staff.staffLogin(deps, anonymous('st-y'), { code: '0384712' }), 'wrongCode');
   });
 
-  it('担当を持ったまま役割を変えることはできない', async () => {
-    await setup();
+  it('担当を持ったまま別の担当のコードでは入り直せない。同じコードなら担当を返す', async () => {
+    await setup({ studentSlots: [{ id: 's1', queueLimit: 10 }, { id: 's2', occupied: false }] });
     await auth.createUser({ uid: 'staff-s1' }).catch(() => undefined);
-    await expectReason(staff.staffLogin(deps, anonymous('staff-s1'), { code: STAFF_CODE, role: 'faculty' }), 'alreadyAssigned');
-    // 同じ役割なら担当を返す（再ログイン）
-    await expect(staff.staffLogin(deps, anonymous('staff-s1'), { code: STAFF_CODE, role: 'student' })).resolves.toMatchObject({ slotId: 's1' });
+    await expectReason(staff.staffLogin(deps, anonymous('staff-s1'), { code: FACULTY_CODE }), 'alreadyAssigned');
+    await expectReason(staff.staffLogin(deps, anonymous('staff-s1'), { code: SLOT_CODES.s2! }), 'alreadyAssigned');
+    await expect(staff.staffLogin(deps, anonymous('staff-s1'), { code: SLOT_CODES.s1! })).resolves.toMatchObject({ role: 'student', slotId: 's1' });
+    // 担当を外れたあとなら、別の枠のコードで入り直せる
+    await staff.releaseAssignment(deps, S1);
+    await expect(staff.staffLogin(deps, anonymous('staff-s1'), { code: SLOT_CODES.s2! })).resolves.toMatchObject({ role: 'student', slotId: 's2' });
+    expect((await read<SlotDoc>(paths.slot('e1', 's1'))).occupant).toBeNull();
   });
 });
 
 // ---------------------------------------------------------------------------
 
 describe('S-02 担当設定・S-09 担当を外れる', () => {
-  it('学生は未占有の枠を占有し、board が準備中から すぐ案内可 になる', async () => {
+  it('学生はコードで決まった未占有の枠を占有し、board が準備中から すぐ案内可 になる', async () => {
     await setup();
-    await seedStaff('e1', [{ uid: 'st-new', role: 'student' }]);
+    await seedStaff('e1', [{ uid: 'st-new', role: 'student', allowedSlotId: 's2' }]);
     expect((await boardOf('s2')).status).toBe('preparing');
 
     await staff.claimSlot(deps, staffCaller('st-new', 'student'), { slotId: 's2' });
@@ -118,17 +145,18 @@ describe('S-02 担当設定・S-09 担当を外れる', () => {
 
   it('1枠1台: 2台が同時に同じ枠を取ると1台だけ成功', async () => {
     await setup();
-    await seedStaff('e1', [{ uid: 'a', role: 'student' }, { uid: 'b', role: 'student' }]);
+    await seedStaff('e1', [{ uid: 'a', role: 'student', allowedSlotId: 's2' }, { uid: 'b', role: 'student', allowedSlotId: 's2' }]);
     const results = await Promise.allSettled(['a', 'b'].map((u) => staff.claimSlot(deps, staffCaller(u, 'student'), { slotId: 's2' })));
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(reasonOf((results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason)).toBe('slotTaken');
   });
 
-  it('占有中の枠は取れない、2つ目の枠も取れない、教員は枠を取れない', async () => {
+  it('占有中の枠は取れない、コードの枠以外は取れない、教員は枠を取れない', async () => {
     await setup();
-    await seedStaff('e1', [{ uid: 'c', role: 'student' }]);
+    await seedStaff('e1', [{ uid: 'c', role: 'student', allowedSlotId: 's1' }]);
     await expectReason(staff.claimSlot(deps, staffCaller('c', 'student'), { slotId: 's1' }), 'slotTaken');
-    await expectReason(staff.claimSlot(deps, S1, { slotId: 's2' }), 'alreadyAssigned');
+    await expectReason(staff.claimSlot(deps, staffCaller('c', 'student'), { slotId: 's2' }), 'forbidden');
+    await expectReason(staff.claimSlot(deps, S1, { slotId: 's2' }), 'forbidden');
     await expectReason(staff.claimSlot(deps, FAC[0]!, { slotId: 's2' }), 'forbidden');
   });
 

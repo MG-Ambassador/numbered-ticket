@@ -54,12 +54,12 @@ export interface TicketRequest {
 
 /** S-01 スタッフログイン。成功したらクライアントは getIdToken(true) でトークンを更新する */
 export interface StaffLoginRequest {
-  /** 8桁。区切りのハイフン・空白は関数側で取り除く */
+  /** 8桁。区切りのハイフン・空白は関数側で取り除く。学生枠のコードか教員のコードかで役割が決まる */
   code: string;
-  role: StaffRole;
 }
 export interface StaffLoginResponse {
   eid: string;
+  role: StaffRole;
   /** 再ログイン時に担当を戻すため */
   slotId: string | null;
   booth: string | null;
@@ -126,7 +126,8 @@ export type AdminRequest =
   | { op: 'updateEvent'; eid: string; settings: Partial<EventSettings> }
   /** A-03: 表示と再発行は auditLog に残す */
   | { op: 'viewCodes'; eid: string }
-  | { op: 'reissueCode'; eid: string; kind: 'entry' | 'staff' }
+  /** slot は slotId の学生枠のコードだけを作り直す */
+  | { op: 'reissueCode'; eid: string; kind: 'entry' | 'faculty' | 'slot'; slotId?: string }
   /** A-04 */
   | { op: 'importSlots'; eid: string; csv: string }
   | { op: 'upsertSlot'; eid: string; slot: StudentSlotInput }
@@ -148,9 +149,17 @@ export type AdminOp = AdminRequest['op'];
 export interface CreateEventResponse {
   eid: string;
 }
+export interface SlotCodeEntry {
+  slotId: string;
+  /** 管理画面の表示用（例: "A-3 ゆい"） */
+  label: string;
+  code: string;
+}
 export interface ViewCodesResponse {
   entryCode: string;
-  staffCode: string;
+  facultyCode: string;
+  /** 学生枠の並び順 */
+  slotCodes: SlotCodeEntry[];
 }
 export interface ImportSlotsResponse {
   /** 取り込んだ枠の ID（CSV の行の順） */

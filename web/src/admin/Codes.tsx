@@ -1,5 +1,5 @@
 // A-03 コードの表示・再発行。表示も再発行も auditLog に残る
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { entryUrl, formatCode, type ViewCodesResponse } from '@nt/shared';
 import { errorMessage } from '../lib/api';
 import { Notice } from '../ui';
@@ -23,16 +23,17 @@ export function Codes({ session, event }: { session: AdminSession; event: AdminE
   }
 
   const url = codes ? entryUrl(location.origin, codes.entryCode) : null;
-  const reissue = (kind: 'entry' | 'staff') =>
+  const reissue = (kind: 'entry' | 'faculty' | 'slot', slotId?: string, label?: string) =>
     confirm({
-      title: kind === 'entry' ? '入場コードを作り直しますか' : 'スタッフコードを作り直しますか',
+      title:
+        kind === 'entry' ? '入場コードを作り直しますか' : kind === 'faculty' ? '教員のスタッフコードを作り直しますか' : `「${label}」のスタッフコードを作り直しますか`,
       body:
         kind === 'entry'
           ? 'ポスターの QR と7桁が使えなくなります。貼り替えシールの準備をしてから行ってください。すでに入場した来場者はそのまま使えます。'
           : '新しくログインするスタッフには新しいコードを伝えてください。ログイン済みの端末はそのまま使えます。',
       confirmLabel: '作り直す',
       danger: true,
-      run: () => act(() => session.api<ViewCodesResponse>({ op: 'reissueCode', eid: event.id, kind })),
+      run: () => act(() => session.api<ViewCodesResponse>({ op: 'reissueCode', eid: event.id, kind, ...(slotId ? { slotId } : {}) })),
     });
 
   return (
@@ -65,15 +66,38 @@ export function Codes({ session, event }: { session: AdminSession; event: AdminE
             <hr />
             <div>
               <span>
-                スタッフコード（8桁）
+                教員のスタッフコード（8桁・教員共通）
                 <br />
-                <b className="big num">{formatCode(codes.staffCode)}</b>
+                <b className="big num">{formatCode(codes.facultyCode)}</b>
               </span>
-              <button className="btn2" onClick={() => reissue('staff')}>
+              <button className="btn2" onClick={() => reissue('faculty')}>
                 作り直す
               </button>
             </div>
           </div>
+          <span className="label">学生枠のスタッフコード（8桁・枠ごと）</span>
+          <p className="small p">枠ごとに違うコードです。担当の学生には、その枠のコードだけを伝えてください。そのコードでログインした端末は、その枠だけを操作できます。</p>
+          {codes.slotCodes.length === 0 ? (
+            <p className="small p">学生枠がまだありません。枠を登録すると、ここにコードが出ます。</p>
+          ) : (
+            <div className="panel">
+              {codes.slotCodes.map((s, i) => (
+                <Fragment key={s.slotId}>
+                  {i > 0 && <hr />}
+                  <div>
+                    <span>
+                      {s.label || s.slotId}
+                      <br />
+                      <b className="big num">{s.code ? formatCode(s.code) : '—'}</b>
+                    </span>
+                    <button className="btn2" onClick={() => reissue('slot', s.slotId, s.label || s.slotId)}>
+                      {s.code ? '作り直す' : '作る'}
+                    </button>
+                  </div>
+                </Fragment>
+              ))}
+            </div>
+          )}
           <div className="field">
             <span className="label">ポスターの QR に入れる URL</span>
             <div className="row">

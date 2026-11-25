@@ -36,7 +36,10 @@ export function makeDeps(now: Date = NOW): Deps {
 }
 
 export const ENTRY_CODE = '0384712';
-export const STAFF_CODE = '03847125';
+/** 教員のスタッフコード（教員共通） */
+export const FACULTY_CODE = '03847125';
+/** 学生枠ごとのスタッフコード。seedEvent はここにある枠のコードを作る */
+export const SLOT_CODES: Record<string, string> = { s1: '51829364', s2: '62930475', s3: '73041586' };
 export const THEMES = ['入試', '授業', '学生生活', '就職', '留学', '資格'];
 
 export async function clearFirestore(): Promise<void> {
@@ -75,9 +78,10 @@ export async function seedEvent(opts: SeedOptions = {}): Promise<string> {
   };
   const batch = db.batch();
   batch.set(db.doc(paths.event(eid)), event);
-  batch.set(db.doc(paths.secretCodes(eid)), { entryCode: ENTRY_CODE, staffCode: STAFF_CODE, updatedAt: ts });
-
   const studentSlots = opts.studentSlots ?? [{ id: 's1' }];
+  const slotCodes = Object.fromEntries(studentSlots.filter((s) => SLOT_CODES[s.id]).map((s) => [s.id, SLOT_CODES[s.id]!]));
+  batch.set(db.doc(paths.secretCodes(eid)), { entryCode: ENTRY_CODE, facultyCode: FACULTY_CODE, slotCodes, updatedAt: ts });
+
   // 管理者の準備（P2-3）と同じく、board も最初から作っておく
   const boardSlots: Record<string, ReturnType<typeof computeBoardSlot>> = {};
   studentSlots.forEach((s, i) => {
@@ -171,12 +175,17 @@ export function staffCaller(uid: string, role: 'student' | 'faculty', eid = 'e1'
  * seedEvent が作った担当に合わせてスタッフの記録を作る。
  * 学生 `staff-<slotId>` は枠を占有済み、教員 `fac-<i>` はブース `F-<i+1>` を設定済み。
  */
-export async function seedStaff(eid: string, entries: { uid: string; role: 'student' | 'faculty'; slotId?: string | null; booth?: string | null }[]): Promise<void> {
+export async function seedStaff(
+  eid: string,
+  entries: { uid: string; role: 'student' | 'faculty'; slotId?: string | null; allowedSlotId?: string | null; booth?: string | null }[],
+): Promise<void> {
   const batch = db.batch();
   const ts = Timestamp.fromDate(NOW);
   for (const e of entries) {
     batch.set(db.doc(paths.staff(eid, e.uid)), {
       role: e.role,
+      // 学生は、占有中の枠のコードでログインしたことにする
+      allowedSlotId: e.allowedSlotId !== undefined ? e.allowedSlotId : e.role === 'student' ? (e.slotId ?? null) : null,
       slotId: e.slotId ?? null,
       booth: e.booth ?? null,
       loggedInAt: ts,

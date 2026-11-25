@@ -22,7 +22,7 @@ import {
   type QueueDoc,
   type StaffLoginRequest,
 } from '@nt/shared';
-import { ENTRY_CODE, PROJECT_ID, STAFF_CODE, auth as adminAuth, clearFirestore, seedEvent } from '../p2/fixture.js';
+import { ENTRY_CODE, PROJECT_ID, SLOT_CODES, auth as adminAuth, clearFirestore, seedEvent } from '../p2/fixture.js';
 
 let app: FirebaseApp;
 
@@ -91,16 +91,16 @@ describe('来場者の一巡（Functions Emulator）', () => {
 });
 
 describe('スタッフの一巡（Functions Emulator）', () => {
-  it('ログイン → 枠の占有 → 自分の列を読める → 来場者の発券 → 呼出', async () => {
+  it('枠のコードでログイン（そのまま占有） → 自分の列を読める → 来場者の発券 → 呼出', async () => {
     await clearFirestore();
     await seedEvent({ studentSlots: [{ id: 's1', occupied: false }] });
 
     // スタッフ
     const st = clients();
     const { user } = await signInAnonymously(st.auth);
-    await httpsCallable<StaffLoginRequest>(st.fns, FUNCTION_NAMES.staffLogin)({ code: STAFF_CODE, role: 'student' });
+    // 枠 s1 のコードでログインすると、その枠をそのまま担当する
+    await httpsCallable<StaffLoginRequest>(st.fns, FUNCTION_NAMES.staffLogin)({ code: SLOT_CODES.s1! });
     await user.getIdToken(true);
-    await httpsCallable(st.fns, FUNCTION_NAMES.claimSlot)({ slotId: 's1' });
     const queueRef = doc(st.db, paths.queue('e1', 's1'));
     expect((await getDoc(queueRef)).data()).toMatchObject({ booths: [{ staffUid: user.uid }] });
 

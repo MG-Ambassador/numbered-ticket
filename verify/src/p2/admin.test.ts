@@ -17,6 +17,7 @@ import {
   type SlotDoc,
   type StudentSlotDoc,
   type TicketDoc,
+  type ViewCodesResponse,
 } from '@nt/shared';
 import { admin } from '../../../functions/src/core/admin.js';
 import { generateCode, isGuessableCode } from '../../../functions/src/core/codes.js';
@@ -26,6 +27,8 @@ import { buildStats } from '../../../functions/src/core/stats.js';
 import * as visitor from '../../../functions/src/core/visitor.js';
 import {
   ENTRY_CODE,
+  FACULTY_CODE,
+  SLOT_CODES,
   NOW,
   adminCaller,
   anonymous,
@@ -106,8 +109,9 @@ describe('A-02 イベント設定・A-03 コード', () => {
 
     const codes = await read<SecretCodesDoc>(paths.secretCodes(eid));
     expect(codes.entryCode).toMatch(/^\d{7}$/);
-    expect(codes.staffCode).toMatch(/^\d{8}$/);
-    expect(isGuessableCode(codes.entryCode) || isGuessableCode(codes.staffCode)).toBe(false);
+    expect(codes.facultyCode).toMatch(/^\d{8}$/);
+    expect(codes.slotCodes).toEqual({});
+    expect(isGuessableCode(codes.entryCode) || isGuessableCode(codes.facultyCode)).toBe(false);
 
     expect((await read<SlotDoc>(paths.slot(eid, FACULTY_SLOT_ID))).kind).toBe('faculty');
     expect((await read<BoardDoc>(paths.board(eid))).slots[FACULTY_SLOT_ID]).toMatchObject({ status: 'preparing' });
@@ -141,12 +145,15 @@ describe('A-02 イベント設定・A-03 コード', () => {
 
   it('コードの表示と再発行を auditLog に残す。再発行後は古い入場コードで入れない', async () => {
     await seedEvent();
-    const shown = await call<{ entryCode: string; staffCode: string }>({ op: 'viewCodes', eid: 'e1' });
+    const shown = await call<ViewCodesResponse>({ op: 'viewCodes', eid: 'e1' });
     expect(shown.entryCode).toBe(ENTRY_CODE);
+    expect(shown.facultyCode).toBe(FACULTY_CODE);
+    expect(shown.slotCodes).toEqual([{ slotId: 's1', label: 'A-1 学生0', code: SLOT_CODES.s1 }]);
 
-    const next = await call<{ entryCode: string; staffCode: string }>({ op: 'reissueCode', eid: 'e1', kind: 'entry' });
+    const next = await call<ViewCodesResponse>({ op: 'reissueCode', eid: 'e1', kind: 'entry' });
     expect(next.entryCode).not.toBe(ENTRY_CODE);
-    expect(next.staffCode).toBe(shown.staffCode);
+    expect(next.facultyCode).toBe(shown.facultyCode);
+    expect(next.slotCodes).toEqual(shown.slotCodes);
     expect((await logs('e1')).map((l) => [l.action, l.detail.kind ?? null]).sort()).toEqual([
       ['code.reissue', 'entry'],
       ['code.view', null],
@@ -195,6 +202,32 @@ describe('A-04 枠の登録', () => {
     expect(Object.keys(board.slots).sort()).toEqual([FACULTY_SLOT_ID, ...slotIds].sort());
     expect(board.slots[slotIds[0]!]!.status).toBe('preparing');
     expect((await logs(eid)).find((l) => l.action === 'slot.import')?.detail).toEqual({ count: 2 });
+
+    // 枠ごとに別のスタッフコードができる。先頭4桁はどのコードとも重ならない
+    const codes = await read<SecretCodesDoc>(paths.secretCodes(eid));
+    expect(Object.keys(codes.slotCodes).sort()).toEqual([...slotIds].sort());
+    const all = [codes.entryCode, codes.facultyCode, ...Object.values(codes.slotCodes)];
+    expect(new Set(all.map((c) => c.slice(0, 4))).size).toBe(all.length);
+    expect(Object.values(codes.slotCodes).every((c) => /^\d{8}$/.test(c) && !isGuessableCode(c))).toBe(true);
+
+    // 同じ枠を直しても、コードは変わらない
+    await call({ op: 'importSlots', eid, csv: `id,nickname,department,bio,tags,location,order\n${slotIds[0]},みさき2,,,,A-1,1\n` });
+    expect((await read<SecretCodesDoc>(paths.secretCodes(eid))).slotCodes).toEqual(codes.slotCodes);
+  });
+
+  it('枠のスタッフコードは枠ごとに作り直せる。ほかのコードは変わらない', async () => {
+    await seedEvent({ studentSlots: [{ id: 's1' }, { id: 's2', occupied: false }] });
+    const next = await call<ViewCodesResponse>({ op: 'reissueCode', eid: 'e1', kind: 'slot', slotId: 's2' });
+    expect(next.slotCodes.find((c) => c.slotId === 's2')!.code).not.toBe(SLOT_CODES.s2);
+    expect(next.slotCodes.find((c) => c.slotId === 's1')!.code).toBe(SLOT_CODES.s1);
+    expect([next.entryCode, next.facultyCode]).toEqual([ENTRY_CODE, FACULTY_CODE]);
+    expect((await logs('e1')).find((l) => l.action === 'code.reissue')).toMatchObject({ target: 's2', detail: { kind: 'slot' } });
+
+    await expectReason(call({ op: 'reissueCode', eid: 'e1', kind: 'slot', slotId: FACULTY_SLOT_ID }), 'invalidInput');
+    await expectReason(call({ op: 'reissueCode', eid: 'e1', kind: 'slot' }), 'invalidInput');
+    await expectReason(call({ op: 'reissueCode', eid: 'e1', kind: 'staff' as never }), 'invalidInput');
+    // 古いコードでは入れない
+    await expectReason(staff.staffLogin(deps, anonymous('st-old'), { code: SLOT_CODES.s2! }), 'wrongCode');
   });
 
   it('ID つきの行は既存の枠を直す。占有・画像・上限は残り、ブースの位置もそろう', async () => {
@@ -255,6 +288,8 @@ describe('A-04 枠の登録', () => {
     expect((await db.doc(paths.slot('e1', 's2')).get()).exists).toBe(false);
     expect((await db.doc(paths.queue('e1', 's2')).get()).exists).toBe(false);
     expect(Object.keys((await read<BoardDoc>(paths.board('e1'))).slots).sort()).toEqual([FACULTY_SLOT_ID, 's1']);
+    // 消した枠のスタッフコードも消える
+    expect((await read<SecretCodesDoc>(paths.secretCodes('e1'))).slotCodes).toEqual({ s1: SLOT_CODES.s1 });
   });
 
   it('プロフィール画像: 形式を中身で確かめて Storage に置き、avatarPath を入れる', async () => {
@@ -354,7 +389,7 @@ describe('A-05 当日の操作', () => {
 
   it('強制解除: 学生の占有を外し、対応中の整理券は次の担当が引き継げる', async () => {
     await seedEvent();
-    await seedStaff('e1', [{ uid: 'staff-s1', role: 'student', slotId: 's1' }, { uid: 'next', role: 'student' }]);
+    await seedStaff('e1', [{ uid: 'staff-s1', role: 'student', slotId: 's1' }, { uid: 'next', role: 'student', allowedSlotId: 's1' }]);
     await seedVisitors('e1', ['f']);
     const t = await visitor.issueTicket(deps, visitorCaller('f'), { slotId: 's1', grade: null, themes: [], memo: null });
     await staff.callNext(deps, staffCaller('staff-s1', 'student'));
@@ -397,7 +432,7 @@ describe('A-06 ダッシュボード・A-07 統計', () => {
     const uids = Array.from({ length: 3 }, (_, i) => `d${i}`);
     await seedVisitors('e1', uids);
     for (const u of uids) await visitor.issueTicket(deps, visitorCaller(u), { slotId: 's1', grade: null, themes: [], memo: null });
-    for (let i = 0; i < 4; i++) await expectReason(staff.staffLogin(deps, anonymous(`bad-${i}`), { code: '00000000', role: 'student' }), 'wrongCode');
+    for (let i = 0; i < 4; i++) await expectReason(staff.staffLogin(deps, anonymous(`bad-${i}`), { code: '00000000' }), 'wrongCode');
     await expectReason(visitor.enterEvent(deps, anonymous('bad-v'), { code: '0000000' }), 'wrongCode');
 
     const res = await call<{ issuedLast10m: number; staffFailuresLast10m: number; entryFailuresLast10m: number; warnings: string[] }>({ op: 'dashboard', eid: 'e1' });

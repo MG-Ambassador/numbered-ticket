@@ -21,6 +21,7 @@ import {
   type StaffLoginRequest,
   type StaffLoginResponse,
   type StaffRole,
+  type StudentSlotDoc,
   type TicketDoc,
   type TicketRequest,
   type VisitorDoc,
@@ -53,10 +54,25 @@ function requireStaffEvent(event: EventDoc): void {
 // S-01 ログイン
 // ---------------------------------------------------------------------------
 
+/** コードがどの担当のものか。学生枠のコードならその枠 ID、教員のコードなら FACULTY_SLOT_ID。違えば null */
+function matchStaffCode(codes: SecretCodesDoc | null, code: string | null): { role: StaffRole; slotId: string | null } | null {
+  if (!codes || !code) return null;
+  let hit: { role: StaffRole; slotId: string | null } | null = null;
+  // 一致しても途中で抜けない（何番目で一致したかで時間が変わらないように）
+  if (codes.facultyCode && sameCode(code, codes.facultyCode)) hit = { role: 'faculty', slotId: null };
+  for (const [slotId, c] of Object.entries(codes.slotCodes ?? {})) {
+    if (sameCode(code, c)) hit = { role: 'student', slotId };
+  }
+  return hit;
+}
+
+/**
+ * S-01 ログイン。役割と担当はコードで決まる。
+ * - 学生枠のコード: その枠だけを担当できる。枠が空いていれば、そのまま占有する（別の端末が担当中なら待つ）
+ * - 教員のコード: 教員相談の列。ブースはこのあと設定する
+ */
 export async function staffLogin(deps: Deps, caller: Caller | null, req: StaffLoginRequest): Promise<StaffLoginResponse> {
   const me = requireAnonymous(caller);
-  const role = req?.role;
-  if (role !== 'student' && role !== 'faculty') fail('invalid-argument', 'invalidInput');
   const now = deps.now();
   const { db } = deps;
   const { eid, event } = await findActiveEvent(db);
@@ -71,33 +87,42 @@ export async function staffLogin(deps: Deps, caller: Caller | null, req: StaffLo
     const secrets = await tx.get(db.doc(paths.secretCodes(eid)));
     const staffRef = db.doc(paths.staff(eid, me.uid));
     const staffSnap = await tx.get(staffRef);
-    const expected = secrets.exists ? (secrets.data() as SecretCodesDoc).staffCode : null;
-    if (!code || !expected || !sameCode(code, expected)) {
+    const hit = matchStaffCode(secrets.exists ? (secrets.data() as SecretCodesDoc) : null, code);
+    if (!hit) {
       recordFailure(tx, device, now);
       return { ok: false as const, retryAfterSeconds: null };
     }
+    const { role, slotId: allowedSlotId } = hit;
+    const prev = staffSnap.exists ? (staffSnap.data() as StaffDoc) : null;
+    // 担当を持ったまま別の担当のコードで入り直すと、枠やブースが残ってしまう
+    if (prev && (prev.slotId || prev.booth) && (prev.role !== role || (prev.slotId && prev.slotId !== allowedSlotId))) {
+      fail('failed-precondition', 'alreadyAssigned');
+    }
+
+    // 学生: 枠が空いていればそのまま担当する
+    let claim: Loaded | null = null;
+    if (allowedSlotId && prev?.slotId !== allowedSlotId) {
+      const l = await loadSlot(tx, db, eid, allowedSlotId);
+      if (l.slot.kind === 'student' && !l.slot.occupant && (l.event.state === 'scheduled' || l.event.state === 'open')) claim = l;
+    }
 
     const ts = Timestamp.fromDate(now);
-    if (staffSnap.exists) {
-      const staff = staffSnap.data() as StaffDoc;
-      // 担当を持ったまま役割を変えると、枠やブースが残ってしまう
-      if (staff.role !== role && (staff.slotId || staff.booth)) fail('failed-precondition', 'alreadyAssigned');
-      tx.update(staffRef, { role, loggedInAt: ts, lastSeenAt: ts });
-      return { ok: true as const, slotId: staff.role === role ? staff.slotId : null, booth: staff.role === role ? staff.booth : null };
-    }
-    const doc: StaffDoc = { role, slotId: null, booth: null, loggedInAt: ts, lastSeenAt: ts, expireAt: expireAtFor(event) };
-    tx.create(staffRef, doc);
-    return { ok: true as const, slotId: null, booth: null };
+    const slotId = claim ? allowedSlotId : prev?.role === role ? (prev.slotId ?? null) : null;
+    const booth = prev?.role === role ? (prev.booth ?? null) : null;
+    if (prev) tx.update(staffRef, { role, allowedSlotId, slotId, booth, loggedInAt: ts, lastSeenAt: ts });
+    else tx.create(staffRef, { role, allowedSlotId, slotId, booth: null, loggedInAt: ts, lastSeenAt: ts, expireAt: expireAtFor(event) } satisfies StaffDoc);
+    if (claim && allowedSlotId) occupy(tx, db, eid, allowedSlotId, claim, me.uid, now);
+    return { ok: true as const, role, slotId, booth };
   });
 
   if (!result.ok) {
     if (result.retryAfterSeconds) fail('resource-exhausted', 'rateLimited', { retryAfterSeconds: result.retryAfterSeconds });
     fail('permission-denied', 'wrongCode');
   }
-  if (me.eid !== eid || me.role !== role) {
-    await deps.auth.setCustomUserClaims(me.uid, { eid, role });
+  if (me.eid !== eid || me.role !== result.role) {
+    await deps.auth.setCustomUserClaims(me.uid, { eid, role: result.role });
   }
-  return { eid, slotId: result.slotId, booth: result.booth };
+  return { eid, role: result.role, slotId: result.slotId, booth: result.booth };
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +147,18 @@ function saveQueue(tx: Transaction, db: Firestore, eid: string, slotId: string, 
   writeBoardSlot(tx, db, eid, slotId, l.event, slot, queue, now);
 }
 
-/** 学生: 未占有の枠を1つ占有する（1枠1台） */
+/** 枠を占有し、列の案内先ブースをそろえる（読み取りはすべて済ませてから呼ぶ） */
+function occupy(tx: Transaction, db: Firestore, eid: string, slotId: string, l: Loaded, uid: string, now: Date): void {
+  const ts = Timestamp.fromDate(now);
+  const prev = l.slot as StudentSlotDoc;
+  const slot: StudentSlotDoc = { ...prev, occupant: { uid, since: ts }, updatedAt: ts };
+  const queue: QueueDoc = { ...l.queue, booths: [{ staffUid: uid, booth: prev.location }], updatedAt: ts };
+  tx.update(db.doc(paths.slot(eid, slotId)), { occupant: slot.occupant, updatedAt: ts });
+  tx.update(db.doc(paths.staff(eid, uid)), { slotId, lastSeenAt: ts });
+  saveQueue(tx, db, eid, slotId, l, queue, now, slot);
+}
+
+/** 学生: スタッフコードで決まった枠を占有する（1枠1台）。ほかの枠は取れない */
 export async function claimSlot(deps: Deps, caller: Caller | null, req: ClaimSlotRequest): Promise<void> {
   const me = requireStaff(caller);
   if (me.role !== 'student') fail('permission-denied', 'forbidden');
@@ -134,19 +170,14 @@ export async function claimSlot(deps: Deps, caller: Caller | null, req: ClaimSlo
 
   await runTx(db, async (tx) => {
     const staff = await getOrFail<StaffDoc>(tx, staffRef);
+    if (staff.allowedSlotId !== slotId) fail('permission-denied', 'forbidden');
     const l = await loadSlot(tx, db, me.eid, slotId);
     requireStaffEvent(l.event);
     if (l.slot.kind !== 'student') fail('invalid-argument', 'invalidInput');
     if (staff.slotId === slotId && l.slot.occupant?.uid === me.uid) return; // 同じ枠を取り直しただけ
     if (staff.slotId) fail('failed-precondition', 'alreadyAssigned');
     if (l.slot.occupant) fail('failed-precondition', 'slotTaken');
-
-    const ts = Timestamp.fromDate(now);
-    const slot: SlotDoc = { ...l.slot, occupant: { uid: me.uid, since: ts }, updatedAt: ts };
-    const queue: QueueDoc = { ...l.queue, booths: [{ staffUid: me.uid, booth: l.slot.location }], updatedAt: ts };
-    tx.update(db.doc(paths.slot(me.eid, slotId)), { occupant: slot.occupant, updatedAt: ts });
-    tx.update(staffRef, { slotId, lastSeenAt: ts });
-    saveQueue(tx, db, me.eid, slotId, l, queue, now, slot);
+    occupy(tx, db, me.eid, slotId, l, me.uid, now);
   });
 }
 

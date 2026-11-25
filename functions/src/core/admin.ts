@@ -1,6 +1,6 @@
 // 管理者の関数（A-01〜A-07）。callable は `admin` の1つで、op で振り分ける。
 // 呼べるのは admin クレーム＋TOTP 済みのトークンだけ（requireAdmin）。
-import { Timestamp, type Firestore, type Transaction, type WriteBatch } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, Timestamp, type Firestore, type Transaction, type WriteBatch } from 'firebase-admin/firestore';
 import {
   DEFAULTS,
   FACULTY_SLOT_ID,
@@ -113,7 +113,7 @@ async function createEvent(deps: Deps, me: Caller, settings: EventSettings): Pro
   const ref = db.collection('events').doc();
   const event: EventDoc = { ...v, state: 'scheduled', nextTicketNumber: DEFAULTS.firstTicketNumber, paused: false, updatedAt: ts };
   const entryCode = generateCode(7);
-  const codes: SecretCodesDoc = { entryCode, staffCode: generateCode(8, [entryCode]), updatedAt: ts };
+  const codes: SecretCodesDoc = { entryCode, facultyCode: generateCode(8, [entryCode]), slotCodes: {}, updatedAt: ts };
   const faculty: FacultySlotDoc = {
     kind: 'faculty',
     order: 1000,
@@ -167,33 +167,59 @@ async function updateEvent(deps: Deps, me: Caller, eid: string, patch: Partial<E
 // A-03 コード
 // ---------------------------------------------------------------------------
 
+/** いま使われているすべてのコード（新しいコードの先頭4桁を重ねないため） */
+export function allCodes(codes: SecretCodesDoc): string[] {
+  return [codes.entryCode, codes.facultyCode, ...Object.values(codes.slotCodes ?? {})];
+}
+
+async function codesResponse(tx: Transaction, db: Firestore, eid: string, codes: SecretCodesDoc): Promise<ViewCodesResponse> {
+  const slots = await tx.get(db.collection(paths.slots(eid)).orderBy('order'));
+  const slotCodes = slots.docs
+    .map((d) => ({ id: d.id, slot: d.data() as SlotDoc }))
+    .filter((x): x is { id: string; slot: StudentSlotDoc } => x.slot.kind === 'student')
+    .map(({ id, slot }) => ({
+      slotId: id,
+      label: [slot.location, slot.profile.nickname].filter(Boolean).join(' '),
+      code: codes.slotCodes?.[id] ?? '',
+    }));
+  return { entryCode: codes.entryCode, facultyCode: codes.facultyCode, slotCodes };
+}
+
 async function viewCodes(deps: Deps, me: Caller, eid: string): Promise<ViewCodesResponse> {
   const { db } = deps;
   const now = deps.now();
   return runTx(db, async (tx) => {
     const event = await getOrFail<EventDoc>(tx, db.doc(paths.event(eid)));
     const codes = await getOrFail<SecretCodesDoc>(tx, db.doc(paths.secretCodes(eid)));
+    const res = await codesResponse(tx, db, eid, codes);
     audit(tx, db, eid, event, me, 'code.view', null, {}, now);
-    return { entryCode: codes.entryCode, staffCode: codes.staffCode };
+    return res;
   });
 }
 
 /** 再発行。入場済みの来場者・ログイン済みのスタッフはそのまま使える（クレームは付いたまま） */
-async function reissueCode(deps: Deps, me: Caller, eid: string, kind: 'entry' | 'staff'): Promise<ViewCodesResponse> {
-  if (kind !== 'entry' && kind !== 'staff') fail('invalid-argument', 'invalidInput');
+async function reissueCode(deps: Deps, me: Caller, eid: string, kind: 'entry' | 'faculty' | 'slot', slotId: unknown): Promise<ViewCodesResponse> {
+  if (kind !== 'entry' && kind !== 'faculty' && kind !== 'slot') fail('invalid-argument', 'invalidInput');
+  if (kind === 'slot' && (typeof slotId !== 'string' || !SLOT_ID.test(slotId))) fail('invalid-argument', 'invalidInput');
   const { db } = deps;
   const now = deps.now();
   return runTx(db, async (tx) => {
     const event = await getOrFail<EventDoc>(tx, db.doc(paths.event(eid)));
     const ref = db.doc(paths.secretCodes(eid));
     const codes = await getOrFail<SecretCodesDoc>(tx, ref);
-    const next: SecretCodesDoc =
-      kind === 'entry'
-        ? { ...codes, entryCode: generateCode(7, [codes.staffCode, codes.entryCode]), updatedAt: Timestamp.fromDate(now) }
-        : { ...codes, staffCode: generateCode(8, [codes.entryCode, codes.staffCode]), updatedAt: Timestamp.fromDate(now) };
+    const avoid = allCodes(codes);
+    const next: SecretCodesDoc = { ...codes, slotCodes: { ...(codes.slotCodes ?? {}) }, updatedAt: Timestamp.fromDate(now) };
+    if (kind === 'entry') next.entryCode = generateCode(7, avoid);
+    else if (kind === 'faculty') next.facultyCode = generateCode(8, avoid);
+    else {
+      const slot = await getOrFail<SlotDoc>(tx, db.doc(paths.slot(eid, slotId as string)));
+      if (slot.kind !== 'student') fail('invalid-argument', 'invalidInput');
+      next.slotCodes[slotId as string] = generateCode(8, avoid);
+    }
+    const res = await codesResponse(tx, db, eid, next);
     tx.set(ref, next);
-    audit(tx, db, eid, event, me, 'code.reissue', null, { kind }, now);
-    return { entryCode: next.entryCode, staffCode: next.staffCode };
+    audit(tx, db, eid, event, me, 'code.reissue', kind === 'slot' ? (slotId as string) : null, { kind }, now);
+    return res;
   });
 }
 
@@ -215,6 +241,8 @@ async function saveStudentSlots(deps: Deps, me: Caller, eid: string, inputs: Stu
     // ---- 読み取り ----
     const event = await getOrFail<EventDoc>(tx, db.doc(paths.event(eid)));
     if (event.state === 'closed' || event.state === 'purged') fail('failed-precondition', 'invalidState');
+    const codesRef = db.doc(paths.secretCodes(eid));
+    const codes = await getOrFail<SecretCodesDoc>(tx, codesRef);
     const existing = await Promise.all(
       inputs.map(async (s) => {
         if (!s.id) return null;
@@ -258,12 +286,19 @@ async function saveStudentSlots(deps: Deps, me: Caller, eid: string, inputs: Stu
     for (const w of writes) overrides.set(w.id, { slot: w.slot, queue: w.queue });
     await rebuildBoard(tx, db, eid, event, now, overrides);
 
+    // 新しい枠には、その枠専用のスタッフコードを作る
+    const slotCodes = { ...(codes.slotCodes ?? {}) };
+    for (const w of writes) {
+      if (!slotCodes[w.id]) slotCodes[w.id] = generateCode(8, allCodes({ ...codes, slotCodes }));
+    }
+
     // ---- 書き込み ----
     for (const w of writes) {
       tx.set(db.doc(paths.slot(eid, w.id)), w.slot);
       if (w.created) tx.create(db.doc(paths.queue(eid, w.id)), w.queue);
       else tx.update(db.doc(paths.queue(eid, w.id)), { booths: w.queue.booths });
     }
+    tx.update(codesRef, { slotCodes, updatedAt: ts });
     audit(tx, db, eid, event, me, action, inputs.length === 1 ? writes[0]!.id : null, { count: inputs.length }, now);
     return writes.map((w) => w.id);
   });
@@ -314,8 +349,11 @@ async function deleteSlot(deps: Deps, me: Caller, eid: string, slotId: string): 
     if (slot.occupant || queue.booths.length + queue.waiting.length + queue.serving.length + queue.skipped.length > 0) {
       fail('failed-precondition', 'slotInUse');
     }
+    const codesRef = db.doc(paths.secretCodes(eid));
+    await getOrFail<SecretCodesDoc>(tx, codesRef);
     avatarPath = slot.profile.avatarPath;
     await rebuildBoard(tx, db, eid, event, now, new Map([[slotId, null]]));
+    tx.update(codesRef, new FieldPath('slotCodes', slotId), FieldValue.delete(), 'updatedAt', Timestamp.fromDate(now));
     tx.delete(db.doc(paths.slot(eid, slotId)));
     tx.delete(db.doc(paths.queue(eid, slotId)));
     audit(tx, db, eid, event, me, 'slot.delete', slotId, {}, now);
@@ -522,7 +560,7 @@ export async function admin(deps: Deps, caller: Caller | null, req: AdminRequest
     case 'viewCodes':
       return viewCodes(deps, me, eidOf(req));
     case 'reissueCode':
-      return reissueCode(deps, me, eidOf(req), req.kind);
+      return reissueCode(deps, me, eidOf(req), req.kind, req.slotId);
     case 'importSlots':
       return importSlots(deps, me, eidOf(req), req.csv);
     case 'upsertSlot':

@@ -24,7 +24,10 @@ if (!['open', 'scheduled'].includes(state)) throw new Error('--state は open �
 
 const EID = 'dev';
 const ENTRY_CODE = '0384712';
-const STAFF_CODE = '03847125';
+/** 教員のスタッフコード（教員共通） */
+const FACULTY_CODE = '03847125';
+/** 学生枠ごとのスタッフコード（s1, s2, …の順） */
+const SLOT_CODES = ['51829364', '62930475', '73041586', '84152697', '95263708'];
 const THEMES = ['入試・選抜方法', '学部・学科の学び', '学生生活', '就職・資格', '費用・奨学金', 'その他'];
 const STUDENTS = [
   { nickname: 'ゆい', department: '国際学部 4年', tags: ['留学', '総合型選抜'], bio: '総合型選抜で入学し、3年の秋から1年間カナダに留学しました。準備の進め方をお話しできます。' },
@@ -76,7 +79,8 @@ const preparing = (kind, queueLimit) => ({
 
 const batch = db.batch();
 batch.set(db.doc(`events/${EID}`), event);
-batch.set(db.doc(`events/${EID}/secrets/codes`), { entryCode: ENTRY_CODE, staffCode: STAFF_CODE, updatedAt: ts });
+const slotCodes = Object.fromEntries(STUDENTS.map((_, i) => [`s${i + 1}`, SLOT_CODES[i]]));
+batch.set(db.doc(`events/${EID}/secrets/codes`), { entryCode: ENTRY_CODE, facultyCode: FACULTY_CODE, slotCodes, updatedAt: ts });
 const board = {};
 STUDENTS.forEach((p, i) => {
   const id = `s${i + 1}`;
@@ -119,5 +123,7 @@ await auth.setCustomUserClaims(admin.uid, { admin: true });
 
 console.log(`イベント ${EID} を作りました（${state}）`);
 console.log('  入場コード   038-4712   → http://localhost:5173/#code=0384712');
-console.log('  スタッフコード 0384-7125 → http://localhost:5173/staff');
+console.log('  スタッフ                 → http://localhost:5173/staff');
+console.log('    教員（共通）     0384-7125');
+STUDENTS.forEach((p, i) => console.log(`    学生 A-${i + 1} ${p.nickname.padEnd(4, '　')} ${SLOT_CODES[i].slice(0, 4)}-${SLOT_CODES[i].slice(4)}`));
 console.log('  管理者 admin@example.com / dev-admin-password → http://localhost:5173/admin');

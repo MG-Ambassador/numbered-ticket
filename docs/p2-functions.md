@@ -70,8 +70,8 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 
 | 関数 | 内容 |
 | --- | --- |
-| `staffLogin`（S-01） | 8桁コード＋役割。端末ごと 3回/10分（失敗のみ）。担当を持ったまま役割は変えられない（`alreadyAssigned`）。再ログインでは担当を返す |
-| `claimSlot`（S-02 学生） | 未占有の枠を1つ占有。`slots.occupant` と `queues.booths` を同時に書く。同時に取り合うと1台だけ成功（`slotTaken`） |
+| `staffLogin`（S-01） | 8桁コードだけ。役割と担当はコードで決まる（学生枠ごとのコード → その枠、教員のコード → 教員相談）。学生は枠が空いていればそのまま占有し、別の端末が担当中なら担当なしでログインだけする。端末ごと 3回/10分（失敗のみ）。担当を持ったまま別の担当のコードでは入り直せない（`alreadyAssigned`）。同じコードの再ログインでは担当を返す |
+| `claimSlot`（S-02 学生） | ログインに使ったコードの枠（`staff.allowedSlotId`）だけを占有できる（ほかの枠は `forbidden`）。`slots.occupant` と `queues.booths` を同時に書く。同時に取り合うと1台だけ成功（`slotTaken`） |
 | `setBooth`（S-02 教員） | ブース番号（英数字とハイフン、16文字まで）。ほかの教員と同じ番号は不可（`boothTaken`） |
 | `releaseAssignment`（S-09） | 対応中がなければ担当を外す。列は残り、学生枠は「準備中」になる |
 | `heartbeat` | `staff.lastSeenAt` の更新（生存確認） |
@@ -99,7 +99,7 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 | `openEvent` / `closeEvent` / `setGlobalPaused` / `updateSlotSettings` / `forceRelease`（A-05） | 下の「当日の操作」 |
 | `dashboard` / `previewStats`（A-06・A-07） | 直近10分の発券数とコードの失敗数、警告。統計は当日の整理券から計算するだけ（保存は定期処理） |
 
-**コード（A-03）**: `crypto.randomInt` で作り、推測されやすいもの（数字が3種類以下、同じ数字が4連続、1ずつ増減する並び、4桁以下の繰り返し、8桁の日付）は作り直す。入場コードとスタッフコードは先頭4桁を変える。ポスターの QR は `entryUrl(origin, code)`（`<公開URL>/#code=<入場コード>`）。
+**コード（A-03）**: `crypto.randomInt` で作り、推測されやすいもの（数字が3種類以下、同じ数字が4連続、1ずつ増減する並び、4桁以下の繰り返し、8桁の日付）は作り直す。スタッフコードは教員共通の1つ（`facultyCode`）と学生枠ごとの1つずつ（`slotCodes`）。学生枠のコードは枠の登録で作り、枠の削除で消す。再発行は入場・教員・枠ごとにできる。どのコードも先頭4桁が重ならないようにする。ポスターの QR は `entryUrl(origin, code)`（`<公開URL>/#code=<入場コード>`）。
 
 **枠の登録（A-04）**:
 
