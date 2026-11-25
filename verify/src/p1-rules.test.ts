@@ -94,7 +94,7 @@ async function seed(state: 'scheduled' | 'open' | 'closed' | 'purged' = 'open') 
     const put = (path: string, data: object) => setDoc(doc(db, path), data);
     await put(P, { title: 'OC', state, paused: false, nextTicketNumber: 104 });
     await put(`events/${OTHER}`, { title: 'other', state: 'open' });
-    await put(`${P}/secrets/codes`, { entryCode: '0384712', staffCode: '03847125' });
+    await put(`${P}/secrets/codes`, { entryCode: '0384712', facultyCode: '03847125', slotCodes: { 'A-1': '51829364' } });
     await put(`${P}/slots/A-1`, { kind: 'student', occupant: { uid: 'sA', since: now }, paused: false, queueLimit: 5 });
     await put(`${P}/slots/A-2`, { kind: 'student', occupant: { uid: 'sB', since: now }, paused: false, queueLimit: 5 });
     await put(`${P}/slots/A-3`, { kind: 'student', occupant: null, paused: false, queueLimit: 5 });

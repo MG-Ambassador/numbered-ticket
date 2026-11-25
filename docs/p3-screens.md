@@ -33,7 +33,7 @@ npm run dev
 ```
 
 - 来場者: http://localhost:5173/#code=0384712 （または http://localhost:5173/ で 038-4712）
-- スタッフ: http://localhost:5173/staff （0384-7125、学生スタッフ → 枠を選ぶ）
+- スタッフ: http://localhost:5173/staff （学生は枠ごとのコード。A-1 ゆいは 5182-9364、A-2 ひなたは 6293-0475 など。教員は 0384-7125。一覧はシード実行時に表示）
 - 管理者: http://localhost:5173/admin （admin@example.com / dev-admin-password。`npm run seed` が Auth Emulator に作る）
 - `npm run seed` は Firestore を空にしてから、開場中のイベント `dev`（学生枠 5・教員相談）を作る。開場前を見るときは `node scripts/seed-emulator.mjs --reset --state scheduled`
 

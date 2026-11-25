@@ -88,7 +88,6 @@ function useHeartbeat(enabled: boolean) {
 
 function Login() {
   const [code, setCode] = useState('');
-  const [role, setRole] = useState<StaffRole | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [lockUntil, setLockUntil] = useState(0);
@@ -97,15 +96,15 @@ function Login() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (code.length !== 8 || !role) {
-      setError('8桁のスタッフコードと役割を入れてください。');
+    if (code.length !== 8) {
+      setError('8桁のスタッフコードを入れてください。');
       return;
     }
     setBusy(true);
     setError(null);
     try {
       const user = c.auth.currentUser ?? (await signInAnonymously(c.auth)).user;
-      await call<StaffLoginRequest, StaffLoginResponse>(c.functions, FUNCTION_NAMES.staffLogin, { code, role });
+      await call<StaffLoginRequest, StaffLoginResponse>(c.functions, FUNCTION_NAMES.staffLogin, { code });
       await user.getIdToken(true);
     } catch (err) {
       const a = toApiError(err);
@@ -124,6 +123,7 @@ function Login() {
           <label className="label" htmlFor="s-code">
             スタッフコード（8桁）
           </label>
+          <p className="small p">担当ごとに違うコードです。学生スタッフは自分の枠のコード、教員スタッフは教員用のコードを入れてください。</p>
           <input
             id="s-code"
             className="code-in"
@@ -136,17 +136,6 @@ function Login() {
             disabled={locked}
           />
         </div>
-        <fieldset>
-          <legend className="label">役割</legend>
-          <div className="seg" role="radiogroup" aria-label="役割">
-            <button type="button" role="radio" aria-selected={role === 'student'} aria-checked={role === 'student'} onClick={() => setRole('student')}>
-              学生スタッフ<span>相談員の枠を担当</span>
-            </button>
-            <button type="button" role="radio" aria-selected={role === 'faculty'} aria-checked={role === 'faculty'} onClick={() => setRole('faculty')}>
-              教員スタッフ<span>教員相談のブース</span>
-            </button>
-          </div>
-        </fieldset>
         {locked ? (
           <Notice kind="warn" icon="clock">
             しばらく時間をおいてから、もう一度お試しください（あと {formatDuration(lockUntil - now)}）。
@@ -184,18 +173,29 @@ function ClaimSlot({ ctx }: { ctx: StaffContext }) {
     }
   }
 
-  const list = slots.status === 'ok' ? slots.data.filter((s): s is StudentSlotDoc & { id: string } => s.kind === 'student') : [];
+  // スタッフコードで決まった枠だけを出す
+  const list =
+    slots.status === 'ok'
+      ? slots.data.filter((s): s is StudentSlotDoc & { id: string } => s.kind === 'student' && s.id === ctx.staff.allowedSlotId)
+      : [];
   return (
     <main className="page">
       <Header eyebrow="スタッフ · STAFF" />
-      <h1 className="t1">担当する枠をえらぶ</h1>
-      <p className="small p">1つの枠は1台の端末だけが担当できます。担当すると、来場者の一覧で受付が始まります。</p>
+      <h1 className="t1">担当の枠</h1>
+      <p className="small p">
+        このスタッフコードで担当できる枠です。1つの枠は1台の端末だけが担当できます。ほかの端末が担当中のときは、その端末で「担当を外れる」を押すか、管理者に解除を頼んでください。
+      </p>
       {error && (
         <Notice kind="danger" icon="alert">
           {error}
         </Notice>
       )}
       {slots.status === 'loading' && <Loading />}
+      {slots.status === 'ok' && list.length === 0 && (
+        <Notice kind="warn" icon="alert">
+          このスタッフコードの枠が見つかりません。管理者に確かめてください。
+        </Notice>
+      )}
       <div className="list">
         {list.map((s) => {
           const taken = !!s.occupant;
@@ -216,7 +216,7 @@ function ClaimSlot({ ctx }: { ctx: StaffContext }) {
         })}
       </div>
       <button className="quiet" onClick={() => void signOut(c.auth)}>
-        ログインをやめる（役割を選び直す）
+        ログインをやめる（コードを入れ直す）
       </button>
     </main>
   );
@@ -263,7 +263,7 @@ function SetBooth() {
         </button>
       </form>
       <button className="quiet" onClick={() => void signOut(c.auth)}>
-        ログインをやめる（役割を選び直す）
+        ログインをやめる（コードを入れ直す）
       </button>
     </main>
   );

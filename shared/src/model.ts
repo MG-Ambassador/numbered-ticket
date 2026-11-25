@@ -24,7 +24,7 @@ export type StaffRole = Exclude<Role, 'visitor'>;
 /**
  * 関数が setCustomUserClaims で付けるクレーム。ルールは request.auth.token で読む。
  * - 来場者: 匿名ログイン → 入場コード照合（V-01）で { eid, role: 'visitor' }
- * - スタッフ: 匿名ログイン → スタッフコード（S-01）で { eid, role: 'student' | 'faculty' }
+ * - スタッフ: 匿名ログイン → スタッフコード（S-01）で { eid, role: 'student' | 'faculty' }。役割はコードで決まる
  * - 管理者: 管理スクリプトで { admin: true }。ルールは TOTP 済み（sign_in_second_factor == 'totp'）も必須にする
  * クレームを付けたあと、クライアントは getIdToken(true) でトークンを更新する。
  */
@@ -65,8 +65,13 @@ export interface EventDoc {
 export interface SecretCodesDoc {
   /** 入場コード（7桁、先頭0可） */
   entryCode: string;
-  /** スタッフコード（8桁） */
-  staffCode: string;
+  /** 教員スタッフのコード（8桁）。教員相談は全学で一つの列なので、教員は共通 */
+  facultyCode: string;
+  /**
+   * 学生枠ごとのスタッフコード（枠 ID → 8桁）。そのコードでログインした端末は、その枠だけを担当できる。
+   * 枠の登録で作り、枠の削除で消す。どのコードも先頭4桁が重ならない
+   */
+  slotCodes: Record<string, string>;
   updatedAt: TimestampLike;
 }
 
@@ -264,6 +269,8 @@ export interface VisitorDoc {
 /** 読める人: 本人、管理者 */
 export interface StaffDoc {
   role: StaffRole;
+  /** 学生: ログインに使ったスタッフコードの枠。占有できるのはこの枠だけ（教員は null） */
+  allowedSlotId: string | null;
   /** 学生: 占有中の枠 */
   slotId: string | null;
   /** 教員: 座っているブース番号 */
