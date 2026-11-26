@@ -39,6 +39,9 @@ done
 # 関数を実行用のサービスアカウントで動かすため
 gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" --project "$PROJECT_ID" \
   --member "serviceAccount:$SA" --role roles/iam.serviceAccountUser >/dev/null
+# firebase deploy（functions）は App Engine の既定のサービスアカウントにも actAs を求める（2026-11-27 の初回の自動デプロイで判明）
+gcloud iam service-accounts add-iam-policy-binding "${PROJECT_ID}@appspot.gserviceaccount.com" --project "$PROJECT_ID" \
+  --member "serviceAccount:$SA" --role roles/iam.serviceAccountUser >/dev/null
 # 秘密の値は実行用のサービスアカウントに先に読ませておく（デプロイ用には Secret Manager の管理権限を渡さない）
 gcloud secrets add-iam-policy-binding RATE_LIMIT_SECRET --project "$PROJECT_ID" \
   --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor >/dev/null

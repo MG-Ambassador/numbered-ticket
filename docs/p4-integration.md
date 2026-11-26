@@ -96,7 +96,7 @@ npm run test:load          # Emulator（Firestore・Auth・Functions）で 150 �
 
 `GCP_WIF_PROVIDER` が未設定のうちはデプロイの job を飛ばす（テストだけ走る）。
 
-デプロイ用のサービスアカウントのロールは `setup-wif.sh` に並べた。初回のデプロイで権限が足りないと言われたら、そのロールを足す（まだ本番で一度も流していないので、足りるかは未確認）。
+デプロイ用のサービスアカウントのロールは `setup-wif.sh` に並べた。2026-11-27 の初回の自動デプロイ（関数を含む）で、App Engine の既定のサービスアカウント（`oc-ticket-2027@appspot.gserviceaccount.com`）への `iam.serviceAccounts.actAs` が足りず失敗したため、`roles/iam.serviceAccountUser` を足した（スクリプトにも追記）。
 
 ## 4. 本番での手順
 
