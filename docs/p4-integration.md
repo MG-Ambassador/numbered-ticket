@@ -163,9 +163,9 @@ TOTP を登録すると、Firebase は登録したメールアドレスに「2�
 
 当面の運用:
 
-- 管理者のログイン ID は、リンクを自動で開かないメール（Gmail など）にする。2026-11-26 に運用アカウント（mga1863engineering@gmail.com）で管理者を作り直し、初回設定と TOTP ログインまで通った。大学のメールの管理者（24ms1009@meijigakuin.ac.jp）は無効にしてある
+- 管理者のログイン ID は、リンクを自動で開かないメール（Gmail など）にする。2026-11-26 に運用アカウント（mga1863engineering@gmail.com）で管理者を作り直し、初回設定と TOTP ログインまで通った。大学のメールの管理者（24ms1009@meijigakuin.ac.jp）は 2026-11-27 に削除した
 - 「2段階認証を追加しました」のメールのリンクは開かない（開くと取り消される）
-- 大学のメールを使いたい場合は、大学の情報システムに Safe Links の対象から `oc-ticket-2027.firebaseapp.com` を外せるか相談する
+- 大学のメールは管理者に使わない（Safe Links の除外は大学に相談しない。2026-11-27 に決定）
 
 調べるときは Identity Platform のリクエストログ（設定 `monitoring.requestLogging.enabled`、Cloud Logging の `identitytoolkit_project`）を一時的に有効にすると、誰がどの呼び出しをしたか（IP・UA）が見える。終わったら無効に戻す（2026-11-26 に戻した）。
 
@@ -173,6 +173,7 @@ TOTP を登録すると、Firebase は登録したメールアドレスに「2�
 
 - TOTP でログインした直後の最初の描画だけ「TOTP なし」になり、初回設定がパスワード変更の段階で固定されていた。`sign_in_second_factor` をクレームと同じトークンから取るようにした（`useAuthState` の `secondFactor`）
 - TOTP 登録済みなのに TOTP を経ていないセッションでは、登録をやり直させず「ログインし直す」を案内する（以前は2つ目を登録しようとして `auth/maximum-second-factor-count-exceeded`）
+- TOTP の登録画面に QR コードを出す（`qrcode` で端末の中で描く。秘密鍵を含むので外部のサービスには送らない）。読み取れないとき用にセットアップキーも残す（2026-11-27）
 - Hosting が HTML を1時間キャッシュしていたため、修正を出しても最大1時間届かなかった。`firebase.json` で `Cache-Control: no-cache` にした（JS・CSS はファイル名にハッシュが入るので問題ない）
 
 ## 5. 画面のバンドル
