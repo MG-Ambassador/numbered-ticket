@@ -156,5 +156,5 @@ node scripts/create-admin.mjs --project oc-ticket-2027 --email <メール>
 ## まだ決めていない・あとでやること
 
 - `issueTicket`・`callNext` の `minInstances: 1`（開催日のみ）、App Check の強制は P4 で設定する
-- 本番へのデプロイ: 関数・索引・TTL をまとめて行う。索引・TTL は 7.4-5 の TTL 計測（`verifyTtl`）が終わってから。初回のデプロイで Cloud Scheduler の API の有効化を求められる（ジョブは月3件まで無料。`scheduledTick` の1件だけ）
+- 本番へのデプロイ: 関数・索引・TTL をまとめて行う。索引・TTL は 7.4-5 の TTL 計測（`verifyTtl`）が終わってから。初回のデプロイで Cloud Scheduler の API の有効化を求められる（ジョブは月3件まで無料。`scheduledTick` の1件だけ）→ 2026-11-24 に P3 時点のコードでデプロイ済み。その後の変更は未反映（[p4-integration.md](p4-integration.md)）
 - E2E では Functions Emulator が `RATE_LIMIT_SECRET` を demo プロジェクトの Secret Manager に取りに行き、403 のログが出る。値は Emulator 用の既定値に切り替わるので、テストには影響しない
