@@ -19,7 +19,8 @@ PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectN
 # 2nd gen の関数が動くときのサービスアカウント（既定の Compute Engine のもの）
 RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-gcloud services enable iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com --project "$PROJECT_ID"
+# cloudbilling: firebase deploy が課金状況を確かめるのに使う（デプロイ用のアカウントでは有効にできない。2026-11-27 に判明）
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com cloudbilling.googleapis.com --project "$PROJECT_ID"
 
 if ! gcloud iam service-accounts describe "$SA" --project "$PROJECT_ID" >/dev/null 2>&1; then
   gcloud iam service-accounts create "$SA_NAME" --project "$PROJECT_ID" --display-name "GitHub Actions deploy"
@@ -38,6 +39,9 @@ for role in \
 done
 # 関数を実行用のサービスアカウントで動かすため
 gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" --project "$PROJECT_ID" \
+  --member "serviceAccount:$SA" --role roles/iam.serviceAccountUser >/dev/null
+# firebase deploy（functions）は App Engine の既定のサービスアカウントにも actAs を求める（2026-11-27 の初回の自動デプロイで判明）
+gcloud iam service-accounts add-iam-policy-binding "${PROJECT_ID}@appspot.gserviceaccount.com" --project "$PROJECT_ID" \
   --member "serviceAccount:$SA" --role roles/iam.serviceAccountUser >/dev/null
 # 秘密の値は実行用のサービスアカウントに先に読ませておく（デプロイ用には Secret Manager の管理権限を渡さない）
 gcloud secrets add-iam-policy-binding RATE_LIMIT_SECRET --project "$PROJECT_ID" \
