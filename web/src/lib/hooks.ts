@@ -7,17 +7,19 @@ export interface AuthState {
   ready: boolean;
   user: User | null;
   claims: Record<string, unknown>;
+  /** トークンの sign_in_second_factor（管理者が TOTP でログインしたら 'totp'）。claims と同じトークンから取るので、食い違わない */
+  secondFactor: string | null;
 }
 
 /** ログイン状態とクレーム。getIdToken(true) でトークンを更新すると claims も変わる */
 export function useAuthState(auth: Auth): AuthState {
-  const [state, setState] = useState<AuthState>({ ready: false, user: null, claims: {} });
+  const [state, setState] = useState<AuthState>({ ready: false, user: null, claims: {}, secondFactor: null });
   useEffect(
     () =>
       onIdTokenChanged(auth, async (user) => {
-        if (!user) return setState({ ready: true, user: null, claims: {} });
+        if (!user) return setState({ ready: true, user: null, claims: {}, secondFactor: null });
         const t = await user.getIdTokenResult();
-        setState({ ready: true, user, claims: t.claims });
+        setState({ ready: true, user, claims: t.claims, secondFactor: t.signInSecondFactor ?? null });
       }),
     [auth],
   );
