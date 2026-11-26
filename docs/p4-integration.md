@@ -11,7 +11,7 @@
 | 2 | App Check・常駐台数を設定で切り替えられるようにする | **済**（コード）。本番の設定は未実施 |
 | 3 | GitHub Actions＋WIF のデプロイ（`.github/workflows/deploy.yml`、`scripts/setup-wif.sh`） | **済**（ファイル）。GCP 側の設定とリポジトリ変数は未実施 |
 | 4 | 画面のバンドル: スタッフ・管理画面を分割読み込みに | **済** |
-| 5 | 本番へのデプロイ（関数・索引・TTL・画面） | 未。下の「本番での手順」 |
+| 5 | 本番へのデプロイ（関数・索引・TTL・画面） | **一部済**。2026-11-24 に P3 時点のコードで手元からデプロイ済み。PR #4・#5 の変更は未反映（下の「本番の現在の状態」） |
 | 6 | 本番での負荷テスト・費用の計測 | 未。5 のあと |
 | 7 | 本番でしか確かめられない項目（下の一覧） | 未。5 のあと |
 
@@ -100,9 +100,25 @@ npm run test:load          # Emulator（Firestore・Auth・Functions）で 150 �
 
 ## 4. 本番での手順
 
+### 本番の現在の状態（2026-11-26 に読み取りで確認）
+
+| 対象 | 状態 |
+| --- | --- |
+| 関数 | 19個が ACTIVE。更新は 2026-11-24 17:04 UTC |
+| 画面（Hosting） | 2026-11-24 17:05 UTC にリリース |
+| 索引 | 複合索引2件が READY |
+| TTL | `tickets`・`visitors`・`staff`・`auditLog`・`rateLimits` の `expireAt` が ACTIVE（ほかに検証用の `verifyTtl`） |
+| ルール | P1 のルール（2026-11-23） |
+
+- デプロイの記録は残っていない。時刻から、P3 のマージ（`c8d6e10`、2026-11-24 16:53 UTC）の直後に手元から行ったものと見られる。GitHub Actions の deploy job は、リポジトリ変数が未登録のため飛ばされている
+- そのため、**PR #4（App Check・常駐台数の切り替えなど）と PR #5（スタッフコードを担当ごとに分ける）の変更は本番に入っていない**。下の 1・2 をもう一度行って追いつかせる
+- 7.4-5 の TTL 計測は終わったので、検証用の `verifyTtl` の TTL 設定は消してよい（消さなくても費用はかからない）
+
+### 手順
+
 順番に行う。どれも本番を変えるので、行う前に確認する。
 
-1. **関数・索引・TTL の初回デプロイ**（手元から）: `firebase deploy --project prod --only functions,firestore`。索引・TTL は 7.4-5 の TTL 計測（2026-11-24 02:41 UTC から24時間）が終わってから。Cloud Scheduler の API の有効化を求められる
+1. **関数・索引・TTL のデプロイ**（手元から）: `firebase deploy --project prod --only functions,firestore`。2026-11-24 に一度デプロイ済み。7.4-5 の TTL 計測は終わっている（合格）
 2. **画面のデプロイ**: `firebase deploy --project prod --only hosting`（以降は GitHub Actions）
 3. **匿名ログインの上限を一時的に上げる**（下の「匿名ログインの上限」）
 4. **本番の負荷テスト**: `HOT_INSTANCES=1` でデプロイしてから

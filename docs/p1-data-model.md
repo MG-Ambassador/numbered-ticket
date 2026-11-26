@@ -53,14 +53,14 @@
 
 - `tickets (slotId, state, number)`: スタッフの待機リスト
 - `tickets (state, returnDeadline)`: 定期処理でスキップ期限切れを探す
-- TTL: `tickets` / `visitors` / `staff` / `auditLog` の `expireAt`。閉場＋1時間の削除は関数で行い、TTL は漏れた場合の保険（7.4-5 は計測中）
+- TTL: `tickets` / `visitors` / `staff` / `auditLog` の `expireAt`。閉場＋1時間の削除は関数で行い、TTL は漏れた場合の保険（7.4-5 で24時間以内に削除されることを確認済み）
 
 ## P2 に引き継ぐこと
 
 - クレームの付与と、付与後のトークン更新（クライアント側は P3）
 - 整理券の状態遷移は `TICKET_TRANSITIONS` 以外を拒否する
 - `memo` の削除（完了・キャンセル・閉場）
-- 索引・TTL の本番へのデプロイ（`firebase deploy --only firestore:indexes --project prod`）。7.4-5 の TTL 計測（`verifyTtl`）が終わってから行う。`verifyTtl` の TTL 設定はファイルにないため、デプロイ時に削除を求められても削除しない
+- 索引・TTL の本番へのデプロイ（`firebase deploy --only firestore:indexes --project prod`）。7.4-5 の TTL 計測（`verifyTtl`）が終わってから行う。`verifyTtl` の TTL 設定はファイルにないため、デプロイ時に削除を求められても削除しない → 2026-11-24 にデプロイ済み（[p4-integration.md](p4-integration.md)）
 
 ## 本番へのデプロイ（2026-11-23）
 
