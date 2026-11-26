@@ -11,6 +11,7 @@ import {
   type TotpSecret,
 } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
+import QRCode from 'qrcode';
 import { clients, useEmulator } from '../firebase';
 import { errorMessage } from '../lib/api';
 import { useAuthState } from '../lib/hooks';
@@ -315,13 +316,12 @@ function Setup({ totp }: { totp: boolean }) {
             });
           }}
         >
-          <p className="p">認証アプリで「セットアップキーを入力」を選び、次のキーを入れてください。</p>
-          <div className="memo num" style={{ fontSize: 18, letterSpacing: '0.08em' }}>
+          <p className="p">認証アプリ（Google Authenticator など）で、この QR コードを読み取ってください。</p>
+          <TotpQr url={secret.generateQrCodeUrl(user.email ?? 'admin', 'OC相談 整理券')} />
+          <p className="small p">読み取れないときは、認証アプリで「セットアップキーを入力」を選び、次のキーを入れてください。</p>
+          <div className="memo num" style={{ fontSize: 18, letterSpacing: '0.08em', overflowWrap: 'anywhere' }}>
             {secret.secretKey}
           </div>
-          <p className="small p">
-            QR コードで読み取る場合の URL: <code style={{ overflowWrap: 'anywhere' }}>{secret.generateQrCodeUrl(user.email ?? 'admin', 'OC相談 整理券')}</code>
-          </p>
           <div className="field">
             <label className="label" htmlFor="s-totp">
               認証アプリに出た6桁
@@ -346,4 +346,20 @@ function Setup({ totp }: { totp: boolean }) {
       {step === 'finish' && <Loading text="設定を仕上げています" />}
     </Shell>
   );
+}
+
+/** TOTP 登録用の QR コード（otpauth:// の URL）。秘密鍵を含むので、外部のサービスには送らず端末の中で描く */
+function TotpQr({ url }: { url: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void QRCode.toDataURL(url, { margin: 2, width: 220, errorCorrectionLevel: 'M' })
+      .then((d) => alive && setSrc(d))
+      .catch(() => alive && setSrc(null));
+    return () => {
+      alive = false;
+    };
+  }, [url]);
+  if (!src) return null;
+  return <img src={src} width={220} height={220} alt="認証アプリに登録する QR コード" style={{ display: 'block', margin: '4px auto', background: '#fff', borderRadius: 8 }} />;
 }
