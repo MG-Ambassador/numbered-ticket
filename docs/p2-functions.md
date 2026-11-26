@@ -93,7 +93,7 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 | op | 内容 |
 | --- | --- |
 | `recordLogin` / `completeSetup`（A-01） | ログインを auditLog に記録。初回設定（パスワード変更・TOTP 登録）のあとで `initial` クレームを外す |
-| `createEvent` / `updateEvent`（A-02） | 作成時にコード2つ・教員相談の枠と列・board を一緒に作る。閉場後は変更不可 |
+| `createEvent` / `updateEvent`（A-02） | 作成時にコード2つ・教員相談の枠と列・board を一緒に作る。閉場後は変更不可。開催は24時間以内、閉場は今より後（年の入力違いで意図せず開場するのを防ぐ）。開場中に開場時刻を未来へ変えると、入場・整理券がなければ開場前に戻す（あれば `eventStarted`） |
 | `viewCodes` / `reissueCode`（A-03） | どちらも auditLog に残す。再発行しても、入場済み・ログイン済みの端末はそのまま使える |
 | `importSlots` / `upsertSlot` / `updateFacultyProfile` / `deleteSlot` / `uploadAvatar`（A-04） | 下の「枠の登録」 |
 | `openEvent` / `closeEvent` / `setGlobalPaused` / `updateSlotSettings` / `forceRelease`（A-05） | 下の「当日の操作」 |
@@ -156,5 +156,5 @@ node scripts/create-admin.mjs --project oc-ticket-2027 --email <メール>
 ## まだ決めていない・あとでやること
 
 - `issueTicket`・`callNext` の `minInstances: 1`（開催日のみ）、App Check の強制は P4 で設定する
-- 本番へのデプロイ: 関数・索引・TTL をまとめて行う。索引・TTL は 7.4-5 の TTL 計測（`verifyTtl`）が終わってから。初回のデプロイで Cloud Scheduler の API の有効化を求められる（ジョブは月3件まで無料。`scheduledTick` の1件だけ）→ 2026-11-24 に P3 時点のコードでデプロイ済み。その後の変更は未反映（[p4-integration.md](p4-integration.md)）
+- 本番へのデプロイ: 関数・索引・TTL をまとめて行う。索引・TTL は 7.4-5 の TTL 計測（`verifyTtl`）が終わってから。初回のデプロイで Cloud Scheduler の API の有効化を求められる（ジョブは月3件まで無料。`scheduledTick` の1件だけ）→ 2026-11-24 に P3 時点のコードでデプロイし、2026-11-26 に main（PR #4・#5 を含む）に追いついた（[p4-integration.md](p4-integration.md)）
 - E2E では Functions Emulator が `RATE_LIMIT_SECRET` を demo プロジェクトの Secret Manager に取りに行き、403 のログが出る。値は Emulator 用の既定値に切り替わるので、テストには影響しない

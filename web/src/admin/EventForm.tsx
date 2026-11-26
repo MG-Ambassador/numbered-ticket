@@ -73,7 +73,7 @@ export function EventForm({ session, event, onSaved, onCancel }: { session: Admi
           <input id="e-close" className="in" type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} />
         </div>
       </div>
-      <p className="small p">開場時刻になると自動で受付が始まり、閉場時刻に残りの整理券を無効にして問診メモを消します。閉場の1時間後に統計を残して削除します。</p>
+      <p className="small p">開場時刻になると自動で受付が始まり、閉場時刻に残りの整理券を無効にして問診メモを消します。閉場の1時間後に統計を残して削除します。開場から閉場までは24時間以内、閉場は今より後にしてください（年や日付の入力違いを防ぐため）。開場後に開場時刻をあとへ変えると、入場した方がいなければ開場前に戻ります。</p>
       <div className="row" style={{ flexWrap: 'wrap' }}>
         <div className="field grow">
           <label className="label" htmlFor="e-consult">

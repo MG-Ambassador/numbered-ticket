@@ -20,6 +20,8 @@ export const DEFAULTS = {
   firstTicketNumber: 101,
   /** queues の直近の相談時間を何件まで持つか */
   recentDurationsSize: 10,
+  /** 開場から閉場までの上限（時間）。年や日付の入力違いで、意図せず開場するのを防ぐ */
+  maxEventHours: 24,
 } as const;
 
 /** 来場者の学年の選択肢（モックアップと同じ） */

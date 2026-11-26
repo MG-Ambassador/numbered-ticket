@@ -24,17 +24,9 @@ const IDLE_MS = 30 * 60_000;
 
 export function AdminApp() {
   const auth = useAuthState(c.auth);
-  const [secondFactor, setSecondFactor] = useState<string | null>(null);
-
-  // トークンの sign_in_second_factor（TOTP 済みか）。クレームと別の場所にあるので取り出す
-  useEffect(() => {
-    let alive = true;
-    if (!auth.user) return setSecondFactor(null);
-    void auth.user.getIdTokenResult().then((t) => alive && setSecondFactor(t.signInSecondFactor ?? null));
-    return () => {
-      alive = false;
-    };
-  }, [auth.user, auth.claims]);
+  // TOTP 済みかはクレームと同じトークンから取る（useAuthState）。別に読むと、TOTP でログインした直後の
+  // 最初の描画だけ「TOTP なし」になり、初回設定がパスワード変更の段階で固定されていた（2026-11-26）
+  const secondFactor = auth.secondFactor;
 
   useIdleLogout(!!auth.user);
 
@@ -227,7 +219,9 @@ function authMessage(err: unknown): string {
 
 function Setup({ totp }: { totp: boolean }) {
   const user = c.auth.currentUser!;
-  const [step, setStep] = useState<'password' | 'totp' | 'relogin' | 'finish'>(totp ? 'finish' : 'password');
+  // TOTP 登録済みなのに TOTP を経ていないセッション（登録後にパスワードだけで入り直した、など）は、登録をやり直させず入り直してもらう
+  const enrolled = multiFactor(user).enrolledFactors.some((f) => f.factorId === TotpMultiFactorGenerator.FACTOR_ID);
+  const [step, setStep] = useState<'password' | 'totp' | 'relogin' | 'finish'>(totp ? 'finish' : enrolled ? 'relogin' : 'password');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [secret, setSecret] = useState<TotpSecret | null>(null);

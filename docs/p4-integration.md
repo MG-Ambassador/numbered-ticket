@@ -9,10 +9,10 @@
 | --- | --- | --- |
 | 1 | 150組の負荷シナリオ（`verify/src/p4/load.scenario.ts`） | **済**。Emulator で流れることを確認。本番は未実施 |
 | 2 | App Check・常駐台数を設定で切り替えられるようにする | **済**（コード）。本番の設定は未実施 |
-| 3 | GitHub Actions＋WIF のデプロイ（`.github/workflows/deploy.yml`、`scripts/setup-wif.sh`） | **済**（ファイル）。GCP 側の設定とリポジトリ変数は未実施 |
+| 3 | GitHub Actions＋WIF のデプロイ（`.github/workflows/deploy.yml`、`scripts/setup-wif.sh`） | **済**。2026-11-26 に `setup-wif.sh` を実行し、リポジトリ変数と Environment `production` を登録。手動実行で画面のデプロイが2回通った |
 | 4 | 画面のバンドル: スタッフ・管理画面を分割読み込みに | **済** |
-| 5 | 本番へのデプロイ（関数・索引・TTL・画面） | **一部済**。2026-11-24 に P3 時点のコードで手元からデプロイ済み。PR #4・#5 の変更は未反映（下の「本番の現在の状態」） |
-| 6 | 本番での負荷テスト・費用の計測 | 未。5 のあと |
+| 5 | 本番へのデプロイ（関数・索引・TTL・画面） | **済**。2026-11-26 に main（`d6f171a`、PR #4・#5 を含む）に追いついた（下の「本番の現在の状態」） |
+| 6 | 本番での負荷テスト・費用の計測 | **一部**。2026-11-26 04:40〜05:10 UTC に流した形跡あり（`issueTicket` への POST 約200件、イベントは片付け済み）。結果の JSON・p95 は記録が見つからず、費用の計測も未 |
 | 7 | 本番でしか確かめられない項目（下の一覧） | 未。5 のあと |
 
 ## 1. 負荷シナリオ
@@ -100,19 +100,32 @@ npm run test:load          # Emulator（Firestore・Auth・Functions）で 150 �
 
 ## 4. 本番での手順
 
-### 本番の現在の状態（2026-11-26 に読み取りで確認）
+### 本番の現在の状態（2026-11-26 07:20 UTC に読み取りで確認）
 
 | 対象 | 状態 |
 | --- | --- |
-| 関数 | 19個が ACTIVE。更新は 2026-11-24 17:04 UTC |
-| 画面（Hosting） | 2026-11-24 17:05 UTC にリリース |
+| 関数 | 19個が ACTIVE。2026-11-26 04:20 UTC に手元からデプロイ。中身は main（`d6f171a`）の `npm run build -w functions` と同じ（`lib/index.js` を突き合わせて確認） |
+| 常駐台数 | `issueTicket`・`callNext` とも 0（`callNext` だけ 1 のまま残っていたので、07:17 UTC 頃に `--only functions:callNext` で戻した） |
+| 画面（Hosting） | 2026-11-26 04:25・04:29 UTC に GitHub Actions の手動実行（`--only hosting`、`d6f171a`）でリリース。App Check のサイトキー入り |
+| ルール | Firestore は 2026-11-26 04:19 UTC、Storage は 2026-11-23（どちらも main と同じ） |
 | 索引 | 複合索引2件が READY |
-| TTL | `tickets`・`visitors`・`staff`・`auditLog`・`rateLimits` の `expireAt` が ACTIVE（ほかに検証用の `verifyTtl`） |
-| ルール | P1 のルール（2026-11-23） |
+| TTL | `tickets`・`visitors`・`staff`・`auditLog`・`rateLimits` の `expireAt` が ACTIVE。検証用の `verifyTtl` は 2026-11-26 に解除 |
+| GitHub Actions | WIF のプール・プロバイダ（main からのトークンだけ受け付ける）、`github-deploy@`、リポジトリ変数、Environment `production` が設定済み |
 
-- デプロイの記録は残っていない。時刻から、P3 のマージ（`c8d6e10`、2026-11-24 16:53 UTC）の直後に手元から行ったものと見られる。GitHub Actions の deploy job は、リポジトリ変数が未登録のため飛ばされている
-- そのため、**PR #4（App Check・常駐台数の切り替えなど）と PR #5（スタッフコードを担当ごとに分ける）の変更は本番に入っていない**。下の 1・2 をもう一度行って追いつかせる
-- 7.4-5 の TTL 計測は終わったので、検証用の `verifyTtl` の TTL 設定は消してよい（消さなくても費用はかからない）
+- 以降の main への push は、テストを通ってから本番へ自動でデプロイされる
+
+### 試用（2026-11-27）の準備
+
+| 項目 | 状態 |
+| --- | --- |
+| 管理者 | mga1863engineering@gmail.com（初回設定・TOTP 済み）。大学のメールの管理者は無効（下の「メールのリンク先」） |
+| イベント | `試用 2026-11-27`（`bxSVSE5CrZaabhjVUmaF`）。13:00 開場・15:00 閉場（JST、定期処理で自動）。16:00 に整理券などが消える |
+| 枠 | 学生 テストA〜C（A-1〜A-3）、教員相談。コードは管理画面で発行済み |
+| 匿名ログインの上限 | 1時間に1000件、2026-11-27 12:30〜16:30 JST（`quota.signUpQuotaConfig`） |
+
+- 作成時に開場を 2025 年と入力し、定期処理がすぐ開場してしまった。開場時刻を直しても状態は戻らないため、入場・整理券が0件なのを確かめてから Admin SDK で `scheduled` に戻し、board を作り直した（監査ログには残らない）。その後、開催は24時間以内・閉場は今より後に限り、開場中に開場時刻を未来へ変えると（入場・整理券がなければ）開場前に戻るよう直した（P2 の `createEvent` / `updateEvent`）
+
+- App Check はサイトキーを画面に入れただけ。強制（`ENFORCE_APP_CHECK=true`、コンソールの「適用」）はまだ
 
 ### 手順
 
@@ -139,6 +152,28 @@ Firebase Authentication は、**同じ IP アドレスからの新規登録（�
 
 - 当日は来場者150組＋スタッフが匿名ログインする。会場の Wi-Fi（出口の IP が1つ）や、携帯回線の共有 IP（キャリアの NAT）に集まると、100件で止まるおそれがある。**開催日（とリハーサルの 3/5）は上限を上げておく**。運用準備の前日確認（3/19）の項目にも入れる
 - 本番の負荷テストも1台の PC から150組以上を登録するので、上げてから流す
+
+### メールのリンク先（2段階認証の取り消し）
+
+TOTP を登録すると、Firebase は登録したメールアドレスに「2段階認証を追加しました。心当たりがなければ取り消してください」というメールを送る（止められない）。標準の処理ページ（`<プロジェクト>.firebaseapp.com/__/auth/action`）は**リンクを開いただけで取り消しを実行する**。
+
+2026-11-26、大学のメール（meijigakuin.ac.jp、Microsoft 365）で管理者を作ったところ、受信時に Microsoft の安全確認がこのリンクを自動で開き、登録の約20秒後に TOTP が取り消され、セッションも失効した。パスワードだけで入れて初回設定に戻るループになる。Identity Platform のリクエストログで、Microsoft のクラウドの IP から `ResetPassword`（リンクの確認）→ `SetAccountInfo`（取り消し）が届いていたことで分かった。`example.com` の検証用アカウントでは再現しない（メールが届かない）。
+
+用意したもの: 開いただけでは何も送らず、「心当たりがないので取り消す」を押したときだけ `applyActionCode` を呼ぶページ `/auth-action`（`web/src/auth/AuthAction.tsx`、本番に出してある）。ただし**リンク先の切り替え（`notification.sendEmail.callbackUri`）は、API でも Firebase コンソールでも拒否された**（API は `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`、コンソールは「アクション URL の更新中にエラーが発生しました」。理由は不明）。切り替えられるようになったら `https://oc-ticket-2027.web.app/auth-action` にする。
+
+当面の運用:
+
+- 管理者のログイン ID は、リンクを自動で開かないメール（Gmail など）にする。2026-11-26 に運用アカウント（mga1863engineering@gmail.com）で管理者を作り直し、初回設定と TOTP ログインまで通った。大学のメールの管理者（24ms1009@meijigakuin.ac.jp）は無効にしてある
+- 「2段階認証を追加しました」のメールのリンクは開かない（開くと取り消される）
+- 大学のメールを使いたい場合は、大学の情報システムに Safe Links の対象から `oc-ticket-2027.firebaseapp.com` を外せるか相談する
+
+調べるときは Identity Platform のリクエストログ（設定 `monitoring.requestLogging.enabled`、Cloud Logging の `identitytoolkit_project`）を一時的に有効にすると、誰がどの呼び出しをしたか（IP・UA）が見える。終わったら無効に戻す（2026-11-26 に戻した）。
+
+### 管理画面の初回設定で直したこと（2026-11-26）
+
+- TOTP でログインした直後の最初の描画だけ「TOTP なし」になり、初回設定がパスワード変更の段階で固定されていた。`sign_in_second_factor` をクレームと同じトークンから取るようにした（`useAuthState` の `secondFactor`）
+- TOTP 登録済みなのに TOTP を経ていないセッションでは、登録をやり直させず「ログインし直す」を案内する（以前は2つ目を登録しようとして `auth/maximum-second-factor-count-exceeded`）
+- Hosting が HTML を1時間キャッシュしていたため、修正を出しても最大1時間届かなかった。`firebase.json` で `Cache-Control: no-cache` にした（JS・CSS はファイル名にハッシュが入るので問題ない）
 
 ## 5. 画面のバンドル
 

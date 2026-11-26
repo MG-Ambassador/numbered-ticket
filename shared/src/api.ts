@@ -229,6 +229,8 @@ export const ERROR_REASONS = {
   returnExpired: '復帰できる時間を過ぎています',
   /** 管理者: URL・SNS の ID を含む入力（A-04） */
   containsContact: 'URL や SNS の ID は登録できません',
+  /** 管理者: 入場した方がいるので、開場時刻をあとに変えられない（開場前に戻すと入った方を締め出す） */
+  eventStarted: '入場した方がいるため、開場時刻をあとに変えられません',
   /** 管理者: 並んでいる方・担当がいる枠は消せない */
   slotInUse: '並んでいる方か担当のいる枠は削除できません',
 } as const;
