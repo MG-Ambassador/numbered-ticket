@@ -107,7 +107,7 @@ export function Today({ session, event }: { session: AdminSession; event: AdminE
           </span>
         </div>
         <div className="row" style={{ flexWrap: 'wrap' }}>
-          {event.state === 'scheduled' && (
+          {session.can('event.operate') && event.state === 'scheduled' && (
             <button
               className="btn"
               style={{ width: 'auto' }}
@@ -123,7 +123,7 @@ export function Today({ session, event }: { session: AdminSession; event: AdminE
               いま開場する
             </button>
           )}
-          {(event.state === 'scheduled' || event.state === 'open') && (
+          {session.can('event.operate') && (event.state === 'scheduled' || event.state === 'open') && (
             <button
               className="btn2 danger"
               onClick={() =>
@@ -262,9 +262,11 @@ export function Today({ session, event }: { session: AdminSession; event: AdminE
                           <div key={booth.staffUid} className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                             {s.id === FACULTY_SLOT_ID && <span>ブース {booth.booth}</span>}
                             <span className={`small${st.stale ? ' warn-text' : ''}`}>{st.text}</span>
-                            <button className="quiet" onClick={() => forceRelease(s.id, booth.staffUid, label)}>
-                              強制解除
-                            </button>
+                            {session.can('event.operate') && (
+                              <button className="quiet" onClick={() => forceRelease(s.id, booth.staffUid, label)}>
+                                強制解除
+                              </button>
+                            )}
                           </div>
                         );
                       })}

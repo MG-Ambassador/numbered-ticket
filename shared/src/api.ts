@@ -1,5 +1,6 @@
 // Cloud Functions（callable）の入出力とエラー理由。画面（P3）はこの型で呼ぶ。
 // エラーは HttpsError で返し、details.reason に下の ErrorReason を入れる。
+import type { OperatorRole } from './roles.js';
 import type { Grade } from './index.js';
 import type { FacultyProfile, StaffRole, StatsDoc } from './model.js';
 
@@ -22,6 +23,8 @@ export const FUNCTION_NAMES = {
   setQueueLimit: 'setQueueLimit',
   /** 管理者の操作はすべてこの1つの関数で受ける（op で振り分け）。起動待ちを1台にまとめるため */
   admin: 'adminApi',
+  /** 管理者のログイン（運営ID＋パスワード → Firebase のカスタムトークン） */
+  operatorLogin: 'operatorLogin',
 } as const;
 
 /** V-01 入場コード照合。成功したらクライアントは getIdToken(true) でトークンを更新する */
@@ -90,7 +93,7 @@ export interface SetQueueLimitRequest {
 }
 
 // ---------------------------------------------------------------------------
-// 管理者（A-01〜A-07）。呼べるのは admin クレーム＋メール/パスワードのログインのトークンだけ
+// 管理者（A-01〜A-07）。運営ID＋パスワードでログインした運営アカウントだけが呼べる。権限はロールごと（roles.ts）
 // 日時は ISO 8601 の文字列でやり取りする（callable は Timestamp をそのまま運べないため）
 // ---------------------------------------------------------------------------
 
@@ -117,10 +120,18 @@ export interface StudentSlotInput {
 }
 
 export type AdminRequest =
+  /** A-01: ログインしている自分の情報（ロール・初回パスワード変更が必要か） */
+  | { op: 'me' }
+  /** A-01: 自分のパスワードを変更する。新しいログイン用のトークンを返す（古い端末のログインは無効になる） */
+  | { op: 'changePassword'; currentPassword: string; newPassword: string }
   /** A-01: ログインの記録（auditLog の admin.login） */
   | { op: 'recordLogin'; eid: string }
-  /** A-01: 初回設定（パスワード変更）が済んだら initial クレームを外す */
-  | { op: 'completeSetup' }
+  /** A-08 アカウント管理（accounts.manage） */
+  | { op: 'listOperators' }
+  | { op: 'createOperator'; loginId: string; displayName: string; role: OperatorRole }
+  /** reset: 仮パスワードを再発行 / disable: 利用停止 / enable: 利用再開。いずれも対象者のログインを無効にする */
+  | { op: 'operatorAction'; loginId: string; action: 'reset' | 'disable' | 'enable' }
+  | { op: 'setOperatorRole'; loginId: string; role: OperatorRole }
   /** A-02 */
   | { op: 'createEvent'; settings: EventSettings }
   | { op: 'updateEvent'; eid: string; settings: Partial<EventSettings> }
@@ -145,6 +156,43 @@ export type AdminRequest =
   | { op: 'previewStats'; eid: string };
 
 export type AdminOp = AdminRequest['op'];
+
+/** ログインしている運営アカウント */
+export interface OperatorIdentity {
+  loginId: string;
+  displayName: string;
+  role: OperatorRole;
+  /** 仮パスワードのまま。パスワードを変えるまで、ほかの操作はできない */
+  mustChange: boolean;
+}
+export interface OperatorLoginRequest {
+  loginId: string;
+  password: string;
+}
+/** token は signInWithCustomToken に渡す */
+export interface OperatorLoginResponse {
+  token: string;
+  identity: OperatorIdentity;
+}
+export interface OperatorSummary {
+  loginId: string;
+  displayName: string;
+  role: OperatorRole;
+  active: boolean;
+  mustChange: boolean;
+}
+export interface CreateOperatorResponse {
+  loginId: string;
+  displayName: string;
+  /** 一度だけ表示する（保存するのはハッシュだけ） */
+  temporaryPassword: string;
+}
+export interface OperatorActionResponse {
+  loginId: string;
+  active: boolean;
+  mustChange: boolean;
+  temporaryPassword?: string;
+}
 
 export interface CreateEventResponse {
   eid: string;
@@ -233,6 +281,18 @@ export const ERROR_REASONS = {
   eventStarted: '入場した方がいるため、開場時刻をあとに変えられません',
   /** 管理者: 並んでいる方・担当がいる枠は消せない */
   slotInUse: '並んでいる方か担当のいる枠は削除できません',
+  /** 運営ログイン: 運営IDかパスワードが違う（どちらが違うかは教えない）・停止中のアカウントも同じ */
+  invalidCredentials: '運営IDかパスワードが違います',
+  /** 運営アカウント: パスワードが長さの条件を満たさない・現在と同じ */
+  passwordPolicy: '新しいパスワードは現在と異なる15〜128文字で入力してください',
+  operatorExists: 'この運営IDはすでに使われています',
+  operatorNotFound: 'アカウントが見つかりません',
+  /** 自分自身の停止・再発行・ロール変更はできない */
+  selfOperation: '自分自身には行えない操作です',
+  /** 仮パスワードのまま。パスワードを変えるまでほかの操作はできない */
+  passwordChangeRequired: '先にパスワードを変更してください',
+  /** ログインの有効期間（8時間）が過ぎた・アカウントが停止・再発行・変更された */
+  sessionExpired: 'ログインの有効期限が切れました。もう一度ログインしてください',
 } as const;
 export type ErrorReason = keyof typeof ERROR_REASONS;
 

@@ -1,5 +1,5 @@
 // 管理者の関数（A-01〜A-07）。callable は `admin` の1つで、op で振り分ける。
-// 呼べるのは admin クレーム＋メール/パスワードのログインのトークンだけ（requireAdmin）。
+// 呼べるのは運営アカウントのログイン（カスタムトークン）だけで、op ごとに必要な権限はロールで決まる（authorizeOperator・shared の roles.ts）。
 import { FieldPath, FieldValue, Timestamp, type Firestore, type Transaction, type WriteBatch } from 'firebase-admin/firestore';
 import {
   DEFAULTS,
@@ -30,9 +30,10 @@ import {
 import { rebuildBoard, writeBoardSlot, type BoardOverrides } from './board.js';
 import { generateCode } from './codes.js';
 import { SLOT_ID, expireAtFor, getOrFail, runTx } from './common.js';
-import { requireAdmin, type Caller, type Deps } from './context.js';
+import type { Caller, Deps } from './context.js';
 import { fail } from './errors.js';
 import { closeEvent, openEvent } from './lifecycle.js';
+import * as operators from './operators.js';
 import { containsContact, csvToSlots, normalizeFacultyProfile, normalizeStudentSlot } from './slotInput.js';
 import { validQueueLimit } from './staff.js';
 import { buildStats } from './stats.js';
@@ -551,24 +552,26 @@ async function previewStats(deps: Deps, eid: string): Promise<PreviewStatsRespon
 }
 
 // ---------------------------------------------------------------------------
-// A-01 ログイン・初回設定
-// ---------------------------------------------------------------------------
-
-/** 初回設定（パスワード変更）が済んだら initial クレームを外す */
-async function completeSetup(deps: Deps, me: Caller): Promise<void> {
-  await deps.auth.setCustomUserClaims(me.uid, { admin: true });
-}
-
-// ---------------------------------------------------------------------------
 
 export async function admin(deps: Deps, caller: Caller | null, req: AdminRequest): Promise<unknown> {
-  const me = requireAdmin(caller);
   if (!req || typeof req !== 'object' || typeof req.op !== 'string') fail('invalid-argument', 'invalidInput');
+  const ctx = await operators.authorizeOperator(deps, caller, req.op);
+  const me = caller as Caller;
   switch (req.op) {
+    case 'me':
+      return operators.me(ctx);
+    case 'changePassword':
+      return operators.changePassword(deps, ctx, req);
+    case 'listOperators':
+      return operators.listOperators(deps);
+    case 'createOperator':
+      return operators.createOperator(deps, ctx, req);
+    case 'operatorAction':
+      return operators.operatorAction(deps, ctx, req);
+    case 'setOperatorRole':
+      return operators.setOperatorRole(deps, ctx, req);
     case 'recordLogin':
       return withAudit(deps, me, eidOf(req), 'admin.login');
-    case 'completeSetup':
-      return completeSetup(deps, me);
     case 'createEvent':
       return createEvent(deps, me, req.settings);
     case 'updateEvent':

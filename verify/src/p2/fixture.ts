@@ -11,11 +11,13 @@ import {
   paths,
   type ErrorReason,
   type EventDoc,
+  type OperatorDoc,
   type QueueDoc,
   type SlotDoc,
 } from '@nt/shared';
 import { computeBoardSlot } from '../../../functions/src/core/board.js';
 import type { Caller, Deps } from '../../../functions/src/core/context.js';
+import { hashPassword } from '../../../functions/src/core/password.js';
 
 export const PROJECT_ID = 'demo-numbered-ticket';
 
@@ -140,11 +142,11 @@ export async function seedEvent(opts: SeedOptions = {}): Promise<string> {
 
 /** 匿名ログイン直後（クレームなし）の呼び出し元 */
 export function anonymous(uid: string, ip: string | null = '203.0.113.1'): Caller {
-  return { uid, provider: 'anonymous', eid: null, role: null, admin: false, secondFactor: null, ip };
+  return { uid, provider: 'anonymous', eid: null, role: null, admin: false, opId: null, opVersion: null, authTime: null, ip };
 }
 
 export function visitorCaller(uid: string, eid = 'e1'): Caller {
-  return { uid, provider: 'anonymous', eid, role: 'visitor', admin: false, secondFactor: null, ip: '203.0.113.1' };
+  return { uid, provider: 'anonymous', eid, role: 'visitor', admin: false, opId: null, opVersion: null, authTime: null, ip: '203.0.113.1' };
 }
 
 /** HttpsError の details.reason を確かめる */
@@ -168,7 +170,7 @@ export async function read<T>(path: string): Promise<T> {
 }
 
 export function staffCaller(uid: string, role: 'student' | 'faculty', eid = 'e1'): Caller {
-  return { uid, provider: 'anonymous', eid, role, admin: false, secondFactor: null, ip: '203.0.113.1' };
+  return { uid, provider: 'anonymous', eid, role, admin: false, opId: null, opVersion: null, authTime: null, ip: '203.0.113.1' };
 }
 
 /**
@@ -206,7 +208,43 @@ export async function seedVisitors(eid: string, uids: string[]): Promise<void> {
   await batch.commit();
 }
 
-/** 管理者（admin クレーム＋パスワードのログイン。TOTP なし） */
-export function adminCaller(uid = 'admin1'): Caller {
-  return { uid, provider: 'password', eid: null, role: null, admin: true, secondFactor: null, ip: '203.0.113.9' };
+/** テストの運営アカウント（seedOperator で operators/{loginId} に作る） */
+export const OPERATOR_PASSWORD = 'correct-horse-battery';
+
+/** 運営アカウントを operators に作る（既定は有効・パスワード変更済み・version 1） */
+export async function seedOperator(
+  loginId = 'tester',
+  patch: Partial<Omit<OperatorDoc, 'passwordHash'>> & { password?: string } = {},
+): Promise<void> {
+  const { password = OPERATOR_PASSWORD, ...rest } = patch;
+  const stamp = Timestamp.fromDate(NOW);
+  const doc: OperatorDoc = {
+    loginId,
+    displayName: 'テスト運営',
+    role: 'developer',
+    passwordHash: await hashPassword(password),
+    active: true,
+    mustChange: false,
+    version: 1,
+    createdAt: stamp,
+    updatedAt: stamp,
+    ...rest,
+  };
+  await db.doc(paths.operator(loginId)).set(doc);
+}
+
+/** 運営アカウントのトークンで呼んだときの呼び出し元（ログインしたのは NOW の少し前） */
+export function adminCaller(loginId = 'tester', over: Partial<Caller> = {}): Caller {
+  return {
+    uid: `op_${loginId}`,
+    provider: 'custom',
+    eid: null,
+    role: null,
+    admin: true,
+    opId: loginId,
+    opVersion: 1,
+    authTime: Math.floor(NOW.getTime() / 1000) - 60,
+    ip: '203.0.113.9',
+    ...over,
+  };
 }

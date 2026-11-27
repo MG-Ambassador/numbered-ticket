@@ -54,6 +54,9 @@ afterAll(async () => {
 const ANON = { firebase: { sign_in_provider: 'anonymous' } };
 const PASSWORD = { firebase: { sign_in_provider: 'password' } };
 const TOTP = { firebase: { sign_in_provider: 'password', sign_in_second_factor: 'totp' } };
+/** 運営アカウント（operatorLogin のカスタムトークン）。operators/{opId} の version と opv が合うことをルールが確かめる */
+const HOURS = 3600;
+const OP = { firebase: { sign_in_provider: 'custom' }, admin: true, auth_time: Math.floor(Date.now() / 1000) - 60 };
 
 const users = {
   visitor1: ['v1', { ...ANON, eid: E, role: 'visitor' }],
@@ -67,11 +70,24 @@ const users = {
   /** 枠を占有していない学生スタッフ */
   studentFree: ['sC', { ...ANON, eid: E, role: 'student' }],
   faculty: ['f1', { ...ANON, eid: E, role: 'faculty' }],
-  admin: ['adm', { ...PASSWORD, admin: true }],
-  /** TOTP を登録済みの管理者（これまでの運用アカウント）も読める */
-  adminTotp: ['adm', { ...TOTP, admin: true }],
-  /** admin クレームを持つが、メール/パスワードのログインでない（ありえないが、ルールで拒否する） */
-  adminAnon: ['adm', { ...ANON, admin: true }],
+  admin: ['op_adm', { ...OP, opId: 'adm', opv: 1 }],
+  /** 別のロールの運営アカウントも、読めるものは同じ（権限の違いは関数が判定する） */
+  adminStaffRole: ['op_stf', { ...OP, opId: 'stf', opv: 1 }],
+  /** アカウントが停止・再発行・変更されて version が進んだあとの、古いログイン */
+  adminStale: ['op_adm', { ...OP, opId: 'adm', opv: 0 }],
+  /** 仮パスワードのまま（パスワードを変えるまで何も読めない） */
+  adminMustChange: ['op_must', { ...OP, opId: 'must', opv: 1 }],
+  /** 利用停止中 */
+  adminDisabled: ['op_off', { ...OP, opId: 'off', opv: 1 }],
+  /** ログインから8時間を過ぎた */
+  adminExpired: ['op_adm', { ...OP, opId: 'adm', opv: 1, auth_time: Math.floor(Date.now() / 1000) - 8 * HOURS - 60 }],
+  /** operators に登録のない ID */
+  adminUnknown: ['op_zzz', { ...OP, opId: 'zzz', opv: 1 }],
+  /** 以前の管理者（メール/パスワード＋admin クレーム）。もう管理者ではない */
+  adminLegacy: ['adm', { ...PASSWORD, admin: true }],
+  adminLegacyTotp: ['adm', { ...TOTP, admin: true }],
+  /** admin クレームと opId を持つが、カスタムトークンでない（ありえないが、ルールで拒否する） */
+  adminAnon: ['adm', { ...ANON, admin: true, opId: 'adm', opv: 1 }],
   /** admin クレームのないパスワード・TOTP ユーザー */
   passwordOnly: ['x2', PASSWORD],
   totpOnly: ['x1', TOTP],
@@ -96,6 +112,11 @@ async function seed(state: 'scheduled' | 'open' | 'closed' | 'purged' = 'open') 
   await env.withSecurityRulesDisabled(async (c) => {
     const db = c.firestore();
     const put = (path: string, data: object) => setDoc(doc(db, path), data);
+    const operator = { displayName: '運営', role: 'developer', passwordHash: 'x', active: true, mustChange: false, version: 1 };
+    await put('operators/adm', { ...operator, loginId: 'adm' });
+    await put('operators/stf', { ...operator, loginId: 'stf', role: 'staff' });
+    await put('operators/must', { ...operator, loginId: 'must', mustChange: true });
+    await put('operators/off', { ...operator, loginId: 'off', active: false });
     await put(P, { title: 'OC', state, paused: false, nextTicketNumber: 104 });
     await put(`events/${OTHER}`, { title: 'other', state: 'open' });
     await put(`${P}/secrets/codes`, { entryCode: '0384712', facultyCode: '03847125', slotCodes: { 'A-1': '51829364' } });
@@ -254,13 +275,13 @@ describe('Firestore', () => {
       await assertFails(read('studentA', `events/${OTHER}/tickets/o1`));
     });
 
-    it('管理者（admin クレーム＋パスワードのログイン）は読める。TOTP は不要', async () => {
+    it('運営アカウントは読める（ロールによらない）。古いログイン・停止・仮パスワード・期限切れ・以前の管理者は読めない', async () => {
       await assertSucceeds(read('admin', `${P}/tickets/t1`));
-      await assertSucceeds(read('adminTotp', `${P}/tickets/t1`));
+      await assertSucceeds(read('adminStaffRole', `${P}/tickets/t1`));
       await assertSucceeds(getDocs(collection(fs('admin'), `${P}/tickets`)));
-      await assertFails(read('adminAnon', `${P}/tickets/t1`));
-      await assertFails(read('passwordOnly', `${P}/tickets/t1`));
-      await assertFails(read('totpOnly', `${P}/tickets/t1`));
+      for (const u of ['adminStale', 'adminMustChange', 'adminDisabled', 'adminExpired', 'adminUnknown', 'adminLegacy', 'adminLegacyTotp', 'adminAnon', 'passwordOnly', 'totpOnly'] as const) {
+        await assertFails(read(u, `${P}/tickets/t1`));
+      }
     });
   });
 
@@ -278,8 +299,9 @@ describe('Firestore', () => {
       await assertFails(read('visitorOther', P));
       await assertFails(read('anonymous', P));
       await assertFails(read('unauthenticated', P));
-      await assertFails(read('adminAnon', P));
-      await assertFails(read('passwordOnly', P));
+      for (const u of ['adminStale', 'adminLegacy', 'adminAnon', 'passwordOnly'] as const) {
+        await assertFails(read(u, P));
+      }
     });
     it('イベントは一覧できない（管理者を除く）', async () => {
       await assertFails(getDocs(collection(fs('visitor1'), 'events')));
@@ -394,6 +416,16 @@ describe('Firestore', () => {
     });
   });
 
+  describe('運営アカウント operators（クライアントからは読み書きできない）', () => {
+    it('管理者でも読めず、書けない（operators・operatorAudit・認証の試行制限）', async () => {
+      for (const path of ['operators/adm', 'operatorAudit/a1', 'rateLimits/auth-ip_v1_x']) {
+        await assertFails(read('admin', path));
+        await assertFails(setDoc(doc(fs('admin'), path), { loginId: 'adm', role: 'developer', active: true, version: 9 }));
+      }
+      await assertFails(getDocs(collection(fs('admin'), 'operators')));
+    });
+  });
+
   describe('監査ログ auditLog と統計 stats', () => {
     const paths = [`${P}/auditLog/l1`, `${P}/stats/2027-03-20`];
     it('管理者だけ読める', async () => {
@@ -401,7 +433,7 @@ describe('Firestore', () => {
       await assertSucceeds(getDocs(collection(fs('admin'), `${P}/auditLog`)));
     });
     it('管理者でない人・スタッフ・来場者は読めない', async () => {
-      for (const u of ['adminAnon', 'passwordOnly', 'totpOnly', 'studentA', 'faculty', 'visitor1'] as const) {
+      for (const u of ['adminAnon', 'adminLegacy', 'adminStale', 'passwordOnly', 'totpOnly', 'studentA', 'faculty', 'visitor1'] as const) {
         for (const p of paths) await assertFails(read(u, p));
       }
     });
@@ -479,13 +511,13 @@ describe('Storage（プロフィール画像）', () => {
     await assertFails(get('studentFree'));
   });
   it('別イベント・未入場・未ログイン・管理者でない人は読めない', async () => {
-    for (const u of ['visitorOther', 'anonymous', 'unauthenticated', 'adminAnon', 'passwordOnly'] as const) {
+    for (const u of ['visitorOther', 'anonymous', 'unauthenticated', 'adminAnon', 'adminLegacy', 'adminStale', 'adminMustChange', 'passwordOnly'] as const) {
       await assertFails(get(u));
     }
   });
-  it('管理者は読める（TOTP は不要）', async () => {
+  it('運営アカウントは読める', async () => {
     await assertSucceeds(get('admin'));
-    await assertSucceeds(get('adminTotp'));
+    await assertSucceeds(get('adminStaffRole'));
   });
   it('誰もアップロード・削除できない（アップロードは関数で行う）', async () => {
     for (const u of ['visitor1', 'studentA', 'admin'] as const) {

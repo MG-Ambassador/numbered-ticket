@@ -14,10 +14,20 @@ service firebase.storage {
       return request.auth.token.get(key, null);
     }
 
+    // 管理者（運営アカウント）。firestore.rules の isAdmin と同じ条件
+    function operatorDoc() {
+      return firestore.get(/databases/(default)/documents/operators/$(request.auth.token.opId)).data;
+    }
+
     function isAdmin() {
       return signedIn()
         && claim('admin') == true
-        && request.auth.token.firebase.get('sign_in_provider', null) == 'password';
+        && claim('opId') != null
+        && request.auth.token.firebase.get('sign_in_provider', null) == 'custom'
+        && request.time.toMillis() < (request.auth.token.auth_time + 28800) * 1000
+        && operatorDoc().active == true
+        && operatorDoc().mustChange == false
+        && operatorDoc().version == claim('opv');
     }
 
     function hasRole(eid, roles) {

@@ -22,9 +22,14 @@ export interface Caller {
   provider: string;
   eid: string | null;
   role: Role | null;
+  /** admin クレーム（運営アカウントのカスタムトークンに付く）。権限の判定は authorizeOperator が operators/{opId} を読んで行う */
   admin: boolean;
-  /** firebase.sign_in_second_factor（管理者は TOTP を登録していれば 'totp'。必須ではない） */
-  secondFactor: string | null;
+  /** 運営ID（opId クレーム） */
+  opId: string | null;
+  /** ログイン時のアカウントの version（opv クレーム）。いまの version と違えば無効 */
+  opVersion: number | null;
+  /** ログインした時刻（auth_time、秒）。ID トークンを更新しても変わらない */
+  authTime: number | null;
   /** X-Forwarded-For の末尾（7.4-3）。取れなければ null */
   ip: string | null;
 }
@@ -32,13 +37,6 @@ export interface Caller {
 export function requireAnonymous(caller: Caller | null): Caller {
   if (!caller) fail('unauthenticated', 'forbidden');
   if (caller.provider !== 'anonymous') fail('permission-denied', 'forbidden');
-  return caller;
-}
-
-/** 管理者: admin クレーム＋メール/パスワードのログイン（ルールの isAdmin と同じ条件。TOTP は必須にしない） */
-export function requireAdmin(caller: Caller | null): Caller {
-  if (!caller) fail('unauthenticated', 'forbidden');
-  if (!caller.admin || caller.provider !== 'password') fail('permission-denied', 'forbidden');
   return caller;
 }
 

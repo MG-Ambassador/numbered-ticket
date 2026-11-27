@@ -25,13 +25,14 @@ export type StaffRole = Exclude<Role, 'visitor'>;
  * 関数が setCustomUserClaims で付けるクレーム。ルールは request.auth.token で読む。
  * - 来場者: 匿名ログイン → 入場コード照合（V-01）で { eid, role: 'visitor' }
  * - スタッフ: 匿名ログイン → スタッフコード（S-01）で { eid, role: 'student' | 'faculty' }。役割はコードで決まる
- * - 管理者: 管理スクリプトで { admin: true }。ルールは sign_in_provider == 'password' を要する（TOTP は必須にしない）
+ * - 管理者: 運営ID＋パスワードでログイン（operatorLogin）→ カスタムトークンのクレーム { admin: true, opId, opv }。
+ *   ルールは operators/{opId} の version == opv・有効・仮パスワードでない・ログインから8時間以内を要する
  * クレームを付けたあと、クライアントは getIdToken(true) でトークンを更新する。
  */
 export type AuthClaims =
   | { eid: string; role: Role; admin?: never }
-  /** initial: 管理スクリプトで作った直後。画面は初回のパスワード変更を求め、済んだら completeSetup で外す */
-  | { admin: true; initial?: true; eid?: never; role?: never };
+  /** opId: 運営ID、opv: ログイン時のアカウントの version（停止・再発行・変更で進み、古いログインが無効になる） */
+  | { admin: true; opId: string; opv: number; eid?: never; role?: never };
 
 // ---------------------------------------------------------------------------
 // events/{eventId}
@@ -328,6 +329,32 @@ export interface AuditLogDoc {
   /** 変更前後など。個人を特定する情報は入れない */
   detail: Record<string, string | number | boolean | null>;
   expireAt: TimestampLike;
+}
+
+/**
+ * 運営アカウント（operators/{loginId}）。クライアントからは読み書きできない（ルールの get() と Admin SDK だけ）。
+ * パスワードは scrypt のハッシュのみ保存する。version を進めると、そのアカウントの全ログインが無効になる
+ */
+export interface OperatorDoc {
+  loginId: string;
+  displayName: string;
+  role: import('./roles.js').OperatorRole;
+  passwordHash: string;
+  active: boolean;
+  /** 仮パスワードのまま（作成・再発行の直後） */
+  mustChange: boolean;
+  version: number;
+  createdAt: TimestampLike;
+  updatedAt: TimestampLike;
+}
+
+/** 運営アカウントの操作記録（operatorAudit/{id}）。パスワードなどの秘密は入れない */
+export interface OperatorAuditDoc {
+  at: TimestampLike;
+  actor: string;
+  action: string;
+  target: string;
+  version: number;
 }
 
 /** 読める人: 管理者。恒久保持するのはこれだけ。個人性のない集計のみ */

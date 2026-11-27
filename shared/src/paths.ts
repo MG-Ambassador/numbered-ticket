@@ -13,6 +13,12 @@ export const paths = {
   staff: (eid: string, uid: string) => `events/${eid}/staff/${uid}`,
   rateLimit: (eid: string, key: string) => `events/${eid}/rateLimits/${key}`,
   auditLog: (eid: string) => `events/${eid}/auditLog`,
+  /** 運営アカウント（イベントに属さない） */
+  operator: (loginId: string) => `operators/${loginId}`,
+  operators: 'operators',
+  operatorAudit: 'operatorAudit',
+  /** 運営ログインの試行制限（コレクション名 rateLimits の TTL をそのまま使う） */
+  authRateLimit: (key: string) => `rateLimits/${key}`,
   stats: (eid: string, date: string) => `events/${eid}/stats/${date}`,
 } as const;
 

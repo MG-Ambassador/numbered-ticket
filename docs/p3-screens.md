@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 1 | 来場者（V-01〜V-08）: 入場ゲート・相談の選択と発券・整理券モニター・呼出通知 | **済**（2026-11-25） |
 | 2 | スタッフ（S-01〜S-09）: ログイン・担当設定・列の操作 | **済**（2026-11-25） |
-| 3 | 管理者（A-01〜A-07）: ログイン＋TOTP・イベント設定・コード・枠の管理・当日の操作・統計 | **済**（2026-11-25）。TOTP と初回設定は Emulator で試せないため本番で確認（P4） |
+| 3 | 管理者（A-01〜A-07）: 運営ID＋パスワードのログイン・ロール別の表示・アカウント管理・イベント設定・コード・枠の管理・当日の操作・統計 | **済**（2026-11-25）。TOTP と初回設定は Emulator で試せないため本番で確認（P4） |
 
 | 成果物 | ファイル |
 | --- | --- |
@@ -34,7 +34,7 @@ npm run dev
 
 - 来場者: http://localhost:5173/#code=0384712 （または http://localhost:5173/ で 038-4712）
 - スタッフ: http://localhost:5173/staff （学生は枠ごとのコード。A-1 ゆいは 5182-9364、A-2 ひなたは 6293-0475 など。教員は 0384-7125。一覧はシード実行時に表示）
-- 管理者: http://localhost:5173/admin （admin@example.com / dev-admin-password。`npm run seed` が Auth Emulator に作る）
+- 管理者: http://localhost:5173/admin （運営ID `admin`（開発者）・`owner`・`faculty`・`staff` / dev-operator-password。`npm run seed` が Firestore の `operators` に作る）
 - `npm run seed` は Firestore を空にしてから、開場中のイベント `dev`（学生枠 5・教員相談）を作る。開場前を見るときは `node scripts/seed-emulator.mjs --reset --state scheduled`
 
 ## 決めたこと
@@ -65,14 +65,9 @@ npm run dev
 
 設計書 4章「文字16px 以上」に合わせ、本文を 16px にした（モックアップは 15px）。補足の文字（目安の注記など）は 12〜14px のまま。
 
-### 7. 管理画面は Emulator では TOTP を省略する
+### 7. 管理画面のログインは運営ID＋パスワード（2026-11-27）
 
-Auth Emulator は TOTP に対応していない（登録で `Missing phoneEnrollmentInfo`）。管理者の関数とルールは「TOTP 済みのトークン」を必須にしているので、そのままでは Emulator で管理画面を試せない。関数とルールは変えずに、**画面の側で Emulator のときだけ**次のようにする（`web/src/admin/session.ts`）。
-
-- パスワードでログインしたユーザーの uid に `admin: true` と `firebase.sign_in_second_factor: 'totp'` を付けた署名なしのトークンを作る
-- Firestore・Storage は `mockUserToken` で、`adminApi` は `fetch` でそのトークンを渡す
-- Emulator は署名を確かめないので通る。本番は署名を確かめるので、この経路は本番では通らない（本番のビルドでは `useEmulator` が false で、呼ばれない）
-- 初回設定（パスワード変更・TOTP 登録・`completeSetup`）は Emulator ではできないので、`npm run seed` の管理者は `initial` なしで作る。初回設定と TOTP ログインは本番で確かめる（P4）
+明学の質問箱と同じ方式。`operatorLogin`（callable）が運営ID＋パスワードを照合してカスタムトークンを返し、画面は `signInWithCustomToken` で Firebase にログインする。Emulator も本番と同じ経路で動くので、以前あった Emulator 専用の代用トークンはなくした。仮パスワードのままの間は、パスワード変更の画面だけを出す。ログインは8時間・タブを閉じると消える。ロール（開発者・責任者・教員・アンバサダー・スタッフ）で、見える項目とボタンを絞る（判定は関数）。開発者・責任者には「アカウント」の項目が出て、作成・再発行・停止・再開・ロール変更ができる。
 
 ### 8. 管理画面の操作
 
@@ -86,7 +81,7 @@ Auth Emulator は TOTP に対応していない（登録で `Missing phoneEnroll
 
 ## まだ決めていない・あとでやること
 
-- 管理者の初回設定（パスワード変更・TOTP 登録）と TOTP でのログインを本番で確かめる（P4）
+- 運営アカウントのログイン・初回のパスワード変更・ロール別の表示を本番で確かめる（P4）
 - ポスター用の QR の画像（いまは URL のみ。印刷会社に URL を渡すか、画像も作るかを入稿前に決める）
 - 閉場で購読がルールで止まったときの表示（「本日の受付は終了しました」）は、本番（15秒以内に止まる）で P4 に確かめる。Emulator では次の更新まで止まらない（7.4-4）
 - プロフィール画像の登録と `getBlob()` での表示は Emulator で確認済み。本番の Storage ルール（`firestore.get()` の権限、P1）での確認は P4
