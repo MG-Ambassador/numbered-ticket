@@ -20,6 +20,12 @@ import type { VisitorContext } from './VisitorApp';
 
 const BASE_TITLE = document.title;
 
+/** ブラウザからは端末の音量も消音モードも変えられないので、手順を示してテストの音を鳴らす */
+const SOUND_HELP = {
+  vol: '本体の側面にある音量ボタン（＋）を押して、音を大きくしてください。いまテストの音を鳴らしました。',
+  mute: 'iPhone は本体左側の着信/消音スイッチを切り替えてください（オレンジ色が見えると消音中です）。アクションボタンの機種は、コントロールセンターから消音モードを切ってください。Android は音量ボタンを押し、表示されたベルのアイコンでマナーモードを切ってください。いまテストの音を鳴らしました。',
+} as const;
+
 function hhmm(ms: number): string {
   const d = new Date(ms);
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -41,6 +47,8 @@ export function TicketView({ ctx, ticketId, onDone }: { ctx: VisitorContext; tic
   const alerts = useCallAlerts(t);
   const wake = useWakeLock();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  /** 「音量を上げる」「消音モードを切る」で開いている手順 */
+  const [soundHelp, setSoundHelp] = useState<keyof typeof SOUND_HELP | null>(null);
 
   if (ticket.status === 'loading') return <Loading />;
   if (!t) {
@@ -240,8 +248,41 @@ export function TicketView({ ctx, ticketId, onDone }: { ctx: VisitorContext; tic
             <Icon name="vol" />
             <span>音で知らせる</span>
           </span>
-          <Switch label="音で知らせる" checked={alerts.sound} onChange={alerts.setSound} />
+          <Switch
+            label="音で知らせる"
+            checked={alerts.sound}
+            onChange={(v) => {
+              alerts.setSound(v);
+              if (!v) setSoundHelp(null);
+            }}
+          />
         </div>
+        {alerts.sound && (
+          <>
+            <div className="sound-help">
+              {(['vol', 'mute'] as const).map((k) => (
+                <button
+                  key={k}
+                  className="btn2 sm"
+                  aria-expanded={soundHelp === k}
+                  aria-controls="sound-help-text"
+                  onClick={() => {
+                    const open = soundHelp !== k;
+                    setSoundHelp(open ? k : null);
+                    if (open) alerts.test();
+                  }}
+                >
+                  {k === 'vol' ? '音量を上げる' : '消音モードを切る'}
+                </button>
+              ))}
+            </div>
+            {soundHelp && (
+              <p className="small p" id="sound-help-text" style={{ padding: '0 16px 12px' }}>
+                {SOUND_HELP[soundHelp]}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="grow" />
@@ -394,10 +435,18 @@ function useCallAlerts(t: TicketDoc | null) {
     }
   }
 
+  /** テストの音（利用者の操作の中で呼ぶので iOS でも鳴る） */
+  function test() {
+    if (!audio.current) return;
+    void audio.current.resume();
+    beep(audio.current, 1);
+  }
+
   const arrived = !!t?.arrivingAt;
   return {
     sound,
     setSound,
+    test,
     showCall: calledAt !== null && ackedAt !== calledAt && !arrived,
     ack: () => setAckedAt(calledAt),
     reopen: () => setAckedAt(null),
