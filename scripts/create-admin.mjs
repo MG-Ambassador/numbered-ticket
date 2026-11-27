@@ -6,8 +6,8 @@
 //   Emulator: FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node scripts/create-admin.mjs --project demo-numbered-ticket --email a@example.com
 //
 // - 本番では Application Default Credentials を使う（gcloud auth application-default login を運用アカウントで）
-// - emailVerified: true で作る（TOTP の登録に必要。7.4-2。メールは送らない）
-// - 仮パスワード（20文字）を一度だけ表示する。初回ログインでパスワード変更と TOTP 登録を求める（クレーム initial: true）
+// - 管理者は ID（メール）＋パスワードでログインする。TOTP は必須にしない（2026-11-27）。メールは送らない
+// - 仮パスワード（20文字）を一度だけ表示する。初回ログインでパスワード変更を求める（クレーム initial: true）
 // - Admin SDK の作成はブロッキング関数（beforeCreate）の対象外
 import { randomInt } from 'node:crypto';
 import { parseArgs } from 'node:util';

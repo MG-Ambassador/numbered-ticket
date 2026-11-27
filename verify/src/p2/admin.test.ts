@@ -74,12 +74,16 @@ beforeEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe('A-01 管理者の認証', () => {
-  it('admin クレーム＋TOTP 済みのトークンだけが呼べる', async () => {
-    await expectReason(admin(deps, { ...ADMIN, secondFactor: null }, { op: 'dashboard', eid: 'e1' }), 'forbidden');
-    await expectReason(admin(deps, { ...ADMIN, secondFactor: 'phone' }, { op: 'dashboard', eid: 'e1' }), 'forbidden');
+  it('admin クレーム＋パスワードのログインだけが呼べる（TOTP は不要）', async () => {
+    await expectReason(admin(deps, { ...ADMIN, provider: 'anonymous' }, { op: 'dashboard', eid: 'e1' }), 'forbidden');
+    await expectReason(admin(deps, { ...ADMIN, admin: false }, { op: 'dashboard', eid: 'e1' }), 'forbidden');
     await expectReason(admin(deps, visitorCaller('v'), { op: 'dashboard', eid: 'e1' }), 'forbidden');
     await expectReason(admin(deps, staffCaller('s', 'faculty'), { op: 'dashboard', eid: 'e1' }), 'forbidden');
     await expectReason(admin(deps, null, { op: 'dashboard', eid: 'e1' }), 'forbidden');
+    // TOTP の有無にかかわらず呼べる
+    await seedEvent();
+    await call({ op: 'recordLogin', eid: 'e1' });
+    await admin(deps, { ...ADMIN, secondFactor: 'totp' }, { op: 'recordLogin', eid: 'e1' });
   });
 
   it('ログインを auditLog に残す。知らない op は拒否', async () => {
@@ -89,12 +93,12 @@ describe('A-01 管理者の認証', () => {
     await expectReason(call({ op: 'nope' } as never), 'invalidInput');
   });
 
-  it('TOTP を登録していなければ初回設定は終わらない', async () => {
+  it('初回設定が終わると initial クレームが外れる（TOTP は不要）', async () => {
     const uid = `adm-${Date.now()}`;
     await auth.createUser({ uid, email: `${uid}@example.com`, password: 'abcdefghijklmn', emailVerified: true });
     await auth.setCustomUserClaims(uid, { admin: true, initial: true });
-    await expectReason(admin(deps, adminCaller(uid), { op: 'completeSetup' }), 'invalidState');
-    expect((await auth.getUser(uid)).customClaims).toEqual({ admin: true, initial: true });
+    await admin(deps, adminCaller(uid), { op: 'completeSetup' });
+    expect((await auth.getUser(uid)).customClaims).toEqual({ admin: true });
   });
 });
 

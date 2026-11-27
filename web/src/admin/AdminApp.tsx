@@ -1,23 +1,14 @@
-// 管理者の画面（A-01 ログイン＋TOTP・初回設定）。ログイン後は Console.tsx
+// 管理者の画面（A-01 ID・パスワードのログイン・初回設定）。ログイン後は Console.tsx
+// TOTP は必須にしない（2026-11-27）。すでに TOTP を登録したアカウントは、これまでどおりコードも求められる
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import {
-  getMultiFactorResolver,
-  multiFactor,
-  signInWithEmailAndPassword,
-  signOut,
-  TotpMultiFactorGenerator,
-  updatePassword,
-  type MultiFactorResolver,
-  type TotpSecret,
-} from 'firebase/auth';
+import { getMultiFactorResolver, signInWithEmailAndPassword, signOut, TotpMultiFactorGenerator, updatePassword, type MultiFactorResolver } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
-import QRCode from 'qrcode';
-import { clients, useEmulator } from '../firebase';
+import { clients } from '../firebase';
 import { errorMessage } from '../lib/api';
 import { useAuthState } from '../lib/hooks';
 import { Header, Loading, Notice } from '../ui';
 import { Console } from './Console';
-import { emulatorSession, productionSession } from './session';
+import { productionSession } from './session';
 
 const c = clients('admin');
 /** A-01: 30分無操作でログアウト */
@@ -25,22 +16,13 @@ const IDLE_MS = 30 * 60_000;
 
 export function AdminApp() {
   const auth = useAuthState(c.auth);
-  // TOTP 済みかはクレームと同じトークンから取る（useAuthState）。別に読むと、TOTP でログインした直後の
-  // 最初の描画だけ「TOTP なし」になり、初回設定がパスワード変更の段階で固定されていた（2026-11-26）
-  const secondFactor = auth.secondFactor;
 
   useIdleLogout(!!auth.user);
 
   const user = auth.user;
   const isAdmin = auth.claims.admin === true;
   const initial = auth.claims.initial === true;
-  const totp = secondFactor === 'totp';
-  const session = useMemo(() => {
-    if (!user || !isAdmin) return null;
-    if (totp) return productionSession(user);
-    if (useEmulator && !initial) return emulatorSession(user);
-    return null;
-  }, [user, isAdmin, totp, initial]);
+  const session = useMemo(() => (user && isAdmin && !initial ? productionSession(user) : null), [user, isAdmin, initial]);
 
   if (!auth.ready) return <Loading />;
   if (!user) return <Login />;
@@ -56,20 +38,8 @@ export function AdminApp() {
       </Shell>
     );
   }
-  if (initial) return <Setup totp={totp} />;
-  if (!session) {
-    // 管理者なのに TOTP を経ていないトークン（登録直後など）。ログインし直してもらう
-    return (
-      <Shell>
-        <Notice kind="warn" icon="alert">
-          認証アプリのコードでのログインが必要です。もう一度ログインしてください。
-        </Notice>
-        <button className="btn" onClick={() => void signOut(c.auth)}>
-          ログインし直す
-        </button>
-      </Shell>
-    );
-  }
+  if (initial) return <Setup />;
+  if (!session) return <Loading />;
   return <Console session={session} onSignOut={() => void signOut(c.auth)} />;
 }
 
@@ -99,7 +69,7 @@ function useIdleLogout(active: boolean) {
   }, [active]);
 }
 
-// ---- ログイン（ID・パスワード → TOTP） ------------------------------------------
+// ---- ログイン（ID・パスワード。TOTP 登録済みのアカウントはコードも） ------------------------------------------
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -115,7 +85,7 @@ function Login() {
     setError(null);
     try {
       await signInWithEmailAndPassword(c.auth, email.trim(), password);
-      // TOTP 未登録（初回）ならここでログインが終わる
+      // TOTP 未登録ならここでログインが終わる
     } catch (err) {
       if (err instanceof FirebaseError && err.code === 'auth/multi-factor-auth-required') {
         setResolver(getMultiFactorResolver(c.auth, err as never));
@@ -145,11 +115,6 @@ function Login() {
   return (
     <Shell>
       <h1 className="t1">管理者ログイン</h1>
-      {useEmulator && (
-        <Notice kind="info" icon="alert">
-          Emulator では認証アプリ（TOTP）が使えないため、パスワードだけでログインします（`npm run seed` で作る admin@example.com）。
-        </Notice>
-      )}
       {!resolver ? (
         <form className="list" onSubmit={submitPassword}>
           <div className="field">
@@ -170,7 +135,7 @@ function Login() {
             </Notice>
           )}
           <button className="btn" type="submit" disabled={busy || !email || !password}>
-            次へ
+            ログイン
           </button>
         </form>
       ) : (
@@ -216,150 +181,56 @@ function authMessage(err: unknown): string {
   return errorMessage(err);
 }
 
-// ---- 初回設定（パスワード変更・TOTP 登録） ----------------------------------------
+// ---- 初回設定（パスワード変更） ---------------------------------------------------
 
-function Setup({ totp }: { totp: boolean }) {
+function Setup() {
   const user = c.auth.currentUser!;
-  // TOTP 登録済みなのに TOTP を経ていないセッション（登録後にパスワードだけで入り直した、など）は、登録をやり直させず入り直してもらう
-  const enrolled = multiFactor(user).enrolledFactors.some((f) => f.factorId === TotpMultiFactorGenerator.FACTOR_ID);
-  const [step, setStep] = useState<'password' | 'totp' | 'relogin' | 'finish'>(totp ? 'finish' : enrolled ? 'relogin' : 'password');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [secret, setSecret] = useState<TotpSecret | null>(null);
-  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function run(fn: () => Promise<void>) {
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (password !== confirm) return setError('確認のパスワードが一致しません。');
     setBusy(true);
     setError(null);
     try {
-      await fn();
-    } catch (err) {
-      setError(authMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // TOTP 済みのトークンで入り直したら、initial クレームを外す
-  useEffect(() => {
-    if (step !== 'finish') return;
-    void run(async () => {
+      await updatePassword(user, password);
       await productionSession(user).api({ op: 'completeSetup' });
       await user.getIdToken(true);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
-
-  if (useEmulator) {
-    return (
-      <Shell>
-        <Notice kind="warn" icon="alert">
-          初回設定（パスワード変更と認証アプリの登録）は Emulator ではできません（TOTP 非対応）。本番環境で確かめてください。Emulator では `npm run seed` で作る管理者を使ってください。
-        </Notice>
-        <button className="btn2" onClick={() => void signOut(c.auth)}>
-          ログアウト
-        </button>
-      </Shell>
-    );
+    } catch (err) {
+      setError(authMessage(err));
+      setBusy(false);
+    }
   }
 
   return (
     <Shell>
       <h1 className="t1">初回設定</h1>
-      <p className="small p">はじめてのログインです。パスワードを変えてから、認証アプリ（Google Authenticator など）を登録してください。</p>
+      <p className="small p">はじめてのログインです。仮パスワードから、ご自身のパスワードに変えてください。</p>
       {error && (
         <Notice kind="danger" icon="alert">
           {error}
         </Notice>
       )}
-      {step === 'password' && (
-        <form
-          className="list"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (password !== confirm) return setError('確認のパスワードが一致しません。');
-            void run(async () => {
-              await updatePassword(user, password);
-              const session = await multiFactor(user).getSession();
-              setSecret(await TotpMultiFactorGenerator.generateSecret(session));
-              setStep('totp');
-            });
-          }}
-        >
-          <div className="field">
-            <label className="label" htmlFor="s-pass">
-              新しいパスワード（12文字以上）
-            </label>
-            <input id="s-pass" className="in" type="password" autoComplete="new-password" minLength={12} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="s-pass2">
-              もう一度
-            </label>
-            <input id="s-pass2" className="in" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          </div>
-          <button className="btn" type="submit" disabled={busy || [...password].length < 12}>
-            パスワードを変える
-          </button>
-        </form>
-      )}
-      {step === 'totp' && secret && (
-        <form
-          className="list"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run(async () => {
-              await multiFactor(user).enroll(TotpMultiFactorGenerator.assertionForEnrollment(secret, code), '認証アプリ');
-              setStep('relogin');
-            });
-          }}
-        >
-          <p className="p">認証アプリ（Google Authenticator など）で、この QR コードを読み取ってください。</p>
-          <TotpQr url={secret.generateQrCodeUrl(user.email ?? 'admin', 'OC相談 整理券')} />
-          <p className="small p">読み取れないときは、認証アプリで「セットアップキーを入力」を選び、次のキーを入れてください。</p>
-          <div className="memo num" style={{ fontSize: 18, letterSpacing: '0.08em', overflowWrap: 'anywhere' }}>
-            {secret.secretKey}
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="s-totp">
-              認証アプリに出た6桁
-            </label>
-            <input id="s-totp" className="code-in" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} />
-          </div>
-          <button className="btn" type="submit" disabled={busy || code.length !== 6}>
-            登録する
-          </button>
-        </form>
-      )}
-      {step === 'relogin' && (
-        <>
-          <Notice kind="ok" icon="check">
-            認証アプリを登録しました。新しいパスワードと認証アプリのコードで、もう一度ログインしてください。
-          </Notice>
-          <button className="btn" onClick={() => void signOut(c.auth)}>
-            ログインし直す
-          </button>
-        </>
-      )}
-      {step === 'finish' && <Loading text="設定を仕上げています" />}
+      <form className="list" onSubmit={(e) => void submit(e)}>
+        <div className="field">
+          <label className="label" htmlFor="s-pass">
+            新しいパスワード（12文字以上）
+          </label>
+          <input id="s-pass" className="in" type="password" autoComplete="new-password" minLength={12} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="s-pass2">
+            もう一度
+          </label>
+          <input id="s-pass2" className="in" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        </div>
+        <button className="btn" type="submit" disabled={busy || [...password].length < 12}>
+          パスワードを変える
+        </button>
+      </form>
     </Shell>
   );
-}
-
-/** TOTP 登録用の QR コード（otpauth:// の URL）。秘密鍵を含むので、外部のサービスには送らず端末の中で描く */
-function TotpQr({ url }: { url: string }) {
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void QRCode.toDataURL(url, { margin: 2, width: 220, errorCorrectionLevel: 'M' })
-      .then((d) => alive && setSrc(d))
-      .catch(() => alive && setSrc(null));
-    return () => {
-      alive = false;
-    };
-  }, [url]);
-  if (!src) return null;
-  return <img src={src} width={220} height={220} alt="認証アプリに登録する QR コード" style={{ display: 'block', margin: '4px auto', background: '#fff', borderRadius: 8 }} />;
 }

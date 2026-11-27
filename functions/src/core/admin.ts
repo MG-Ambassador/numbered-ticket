@@ -1,5 +1,5 @@
 // 管理者の関数（A-01〜A-07）。callable は `admin` の1つで、op で振り分ける。
-// 呼べるのは admin クレーム＋TOTP 済みのトークンだけ（requireAdmin）。
+// 呼べるのは admin クレーム＋メール/パスワードのログインのトークンだけ（requireAdmin）。
 import { FieldPath, FieldValue, Timestamp, type Firestore, type Transaction, type WriteBatch } from 'firebase-admin/firestore';
 import {
   DEFAULTS,
@@ -554,11 +554,8 @@ async function previewStats(deps: Deps, eid: string): Promise<PreviewStatsRespon
 // A-01 ログイン・初回設定
 // ---------------------------------------------------------------------------
 
-/** 初回設定が済んだら initial クレームを外す。TOTP 済みのトークンでしか呼べないので、TOTP の登録は済んでいる */
+/** 初回設定（パスワード変更）が済んだら initial クレームを外す */
 async function completeSetup(deps: Deps, me: Caller): Promise<void> {
-  const user = await deps.auth.getUser(me.uid);
-  const enrolled = user.multiFactor?.enrolledFactors.some((f) => f.factorId === 'totp') ?? false;
-  if (!enrolled) fail('failed-precondition', 'invalidState');
   await deps.auth.setCustomUserClaims(me.uid, { admin: true });
 }
 

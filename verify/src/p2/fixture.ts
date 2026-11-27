@@ -206,7 +206,7 @@ export async function seedVisitors(eid: string, uids: string[]): Promise<void> {
   await batch.commit();
 }
 
-/** 管理者（admin クレーム＋TOTP 済み） */
+/** 管理者（admin クレーム＋パスワードのログイン。TOTP なし） */
 export function adminCaller(uid = 'admin1'): Caller {
-  return { uid, provider: 'password', eid: null, role: null, admin: true, secondFactor: 'totp', ip: '203.0.113.9' };
+  return { uid, provider: 'password', eid: null, role: null, admin: true, secondFactor: null, ip: '203.0.113.9' };
 }
