@@ -147,10 +147,6 @@ describe('A-02 イベント設定・A-03 コード', () => {
       { themes: [] },
       { themes: ['入試', '入試'] },
       { title: '' },
-      // 開催が24時間を超える（年の入力違い。2026-11-26 の試用で実際に起きた）
-      { opensAt: '2026-03-20T10:00:00+09:00' },
-      // 閉場がもう過ぎている（NOW は 2027-03-20 11:00 JST）
-      { opensAt: '2027-03-20T09:00:00+09:00', closesAt: '2027-03-20T10:30:00+09:00' },
     ];
     for (const b of bad) await expectReason(call({ op: 'createEvent', settings: { ...SETTINGS, ...b } }), 'invalidInput');
     await expectReason(call({ op: 'createEvent', settings: { ...SETTINGS, themes: ['詳しくは example.com'] } }), 'containsContact');
@@ -184,9 +180,12 @@ describe('A-02 イベント設定・A-03 コード', () => {
     expect((await read<EventDoc>(paths.event(eid))).state).toBe('open');
   });
 
-  it('閉場を過去に変えることはできない（早く閉じるときは閉場の操作）', async () => {
+  it('開催の長さや、閉場が過去かどうかは検証しない（開場より後であればよい）', async () => {
+    // 24時間を超える開催・閉場がすでに過ぎている開催も作れる
+    await call({ op: 'createEvent', settings: { ...SETTINGS, opensAt: '2027-03-18T10:00:00+09:00' } });
+    await call({ op: 'createEvent', settings: { ...SETTINGS, opensAt: '2027-03-20T09:00:00+09:00', closesAt: '2027-03-20T10:30:00+09:00' } });
     const { eid } = await call<{ eid: string }>({ op: 'createEvent', settings: SETTINGS });
-    await expectReason(call({ op: 'updateEvent', eid, settings: { closesAt: '2027-03-20T10:30:00+09:00' } }), 'invalidInput');
+    await call({ op: 'updateEvent', eid, settings: { closesAt: '2027-03-20T10:30:00+09:00' } });
   });
 
   it('コードの表示と再発行を auditLog に残す。再発行後は古い入場コードで入れない', async () => {
