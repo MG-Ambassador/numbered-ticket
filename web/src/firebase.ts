@@ -3,7 +3,6 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-ch
 import { browserSessionPersistence, connectAuthEmulator, getAuth, initializeAuth, type Auth } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore, initializeFirestore, memoryLocalCache, type Firestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
-import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
 import { REGION } from '@nt/shared';
 
 // 本番の設定値はビルド時の環境変数（VITE_FB_*）で渡す（GitHub Actions の変数。docs/p4-integration.md）。
@@ -15,7 +14,6 @@ export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FB_API_KEY ?? 'demo-key',
   authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN ?? `${projectId}.firebaseapp.com`,
   projectId,
-  storageBucket: import.meta.env.VITE_FB_STORAGE_BUCKET ?? `${projectId}.appspot.com`,
   appId: import.meta.env.VITE_FB_APP_ID ?? 'demo-app',
 };
 
@@ -30,7 +28,6 @@ export interface Clients {
   auth: Auth;
   db: Firestore;
   functions: Functions;
-  storage: FirebaseStorage;
 }
 
 /** App Check（reCAPTCHA Enterprise）のサイトキー。未設定なら App Check を使わない（Emulator・強制前） */
@@ -53,14 +50,12 @@ export function clients(surface: Surface): Clients {
   // 設計書 4章「SDK はメモリキャッシュのみ」
   const db = existing ? getFirestore(app) : initializeFirestore(app, { localCache: memoryLocalCache() });
   const functions = getFunctions(app, REGION);
-  const storage = getStorage(app);
   if (useEmulator && !existing) {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     connectFunctionsEmulator(functions, '127.0.0.1', 5001);
-    connectStorageEmulator(storage, '127.0.0.1', 9199);
   }
-  const c = { app, auth, db, functions, storage };
+  const c = { app, auth, db, functions };
   cache.set(surface, c);
   return c;
 }

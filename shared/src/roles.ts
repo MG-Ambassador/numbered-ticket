@@ -82,7 +82,6 @@ export const ADMIN_OP_PERMISSIONS: Record<AdminOp, Permission | null> = {
   upsertSlot: 'event.manage',
   updateFacultyProfile: 'event.manage',
   deleteSlot: 'event.manage',
-  uploadAvatar: 'event.manage',
   viewCodes: 'codes.manage',
   reissueCode: 'codes.manage',
   listOperators: 'accounts.manage',
@@ -91,7 +90,7 @@ export const ADMIN_OP_PERMISSIONS: Record<AdminOp, Permission | null> = {
   setOperatorRole: 'accounts.manage',
 };
 
-/** ログインの有効期間（質問箱と同じ8時間・延長なし）。ルール（firestore.rules・storage.rules）の 28800 と同じ値 */
+/** ログインの有効期間（質問箱と同じ8時間・延長なし）。ルール（firestore.rules）の 28800 と同じ値 */
 export const OPERATOR_SESSION_SECONDS = 8 * 60 * 60;
 
 /** 運営ID: 半角英数字・ハイフン・アンダーバーの3〜40文字。小文字に正規化する。不正なら null */

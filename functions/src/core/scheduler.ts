@@ -1,12 +1,11 @@
 // 定期処理（設計書 3.4）。1分ごとに tick を呼ぶ。何度呼んでも同じ結果になるように書く。
 // - 開場時刻で受付開始、閉場時刻で残りの整理券を無効化し問診メモを全削除（lifecycle.ts）
 // - スキップから復帰期限を過ぎた整理券を無効化
-// - 閉場から1時間後に統計を集計し、整理券・枠・画像・匿名ユーザーなどを削除
+// - 閉場から1時間後に統計を集計し、整理券・枠・匿名ユーザーなどを削除
 import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 import {
   ACTIVE_TICKET_STATES,
   paths,
-  storagePaths,
   type AuditAction,
   type AuditLogDoc,
   type EventDoc,
@@ -183,14 +182,11 @@ export async function purgeEvent(deps: Deps, eid: string, now: Date): Promise<vo
     if (anonymous.length > 0) await auth.deleteUsers(anonymous.map((u) => u.uid));
   }
 
-  // 3. 画像
-  await deps.bucket().deleteFiles({ prefix: `${storagePaths.avatar(eid, '')}` });
-
-  // 4. Firestore（stats 以外のサブコレクション）
+  // 3. Firestore（stats 以外のサブコレクション）
   for (const c of PURGED_COLLECTIONS) {
     await db.recursiveDelete(db.collection(`events/${eid}/${c}`));
   }
 
-  // 5. 最後に状態を purged にする（ここまで済んで初めて次の tick の対象から外れる）
+  // 4. 最後に状態を purged にする（ここまで済んで初めて次の tick の対象から外れる）
   await eventRef.update({ state: 'purged', updatedAt: Timestamp.fromDate(now) });
 }

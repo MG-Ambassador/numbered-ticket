@@ -89,7 +89,7 @@ STUDENTS.forEach((p, i) => {
     paused: false,
     queueLimit: 5,
     updatedAt: ts,
-    profile: { ...p, avatarPath: null },
+    profile: { ...p },
     location: `A-${i + 1}`,
     occupant: null,
   });

@@ -1,5 +1,4 @@
 import type { Auth } from 'firebase-admin/auth';
-import type { Storage } from 'firebase-admin/storage';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { Role } from '@nt/shared';
 import { fail } from './errors.js';
@@ -11,8 +10,6 @@ export interface Deps {
   /** RATE_LIMIT_SECRET（HMAC の鍵）。使う関数だけが秘密の値を読むよう関数にしている */
   rateLimitSecret: () => string;
   now: () => Date;
-  /** プロフィール画像のバケット（管理者の uploadAvatar・定期処理の削除だけが使う） */
-  bucket: () => ReturnType<Storage['bucket']>;
 }
 
 /** 呼び出し元。callable の req.auth から作る */

@@ -1,8 +1,7 @@
-// 管理者のセッション（A-01）。Firestore・Storage・adminApi への入口をまとめる。
+// 管理者のセッション（A-01）。Firestore・adminApi への入口をまとめる。
 // 運営ID＋パスワードでログインしたカスタムトークン（operatorLogin）をそのまま使う。ロールごとの権限は関数が判定する。
 import { signOut, type User } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
-import type { FirebaseStorage } from 'firebase/storage';
 import { FUNCTION_NAMES, can, type AdminRequest, type OperatorIdentity, type Permission } from '@nt/shared';
 import { clients } from '../firebase';
 import { ApiError, call } from '../lib/api';
@@ -12,7 +11,6 @@ export interface AdminSession {
   /** ログインしている運営アカウント（ロールで表示を絞る。権限の判定の正本は関数） */
   identity: OperatorIdentity;
   db: Firestore;
-  storage: FirebaseStorage;
   /** adminApi（op で振り分ける1つの callable） */
   api: <Res = void>(req: AdminRequest) => Promise<Res>;
   /** ロールがその権限を持つか（画面の表示を絞るため） */
@@ -25,7 +23,6 @@ export function productionSession(user: User, identity: OperatorIdentity): Admin
     uid: user.uid,
     identity,
     db: c.db,
-    storage: c.storage,
     api: async (req) => {
       try {
         return await call(c.functions, FUNCTION_NAMES.admin, req);

@@ -477,7 +477,7 @@ describe('Firestore', () => {
   });
 });
 
-describe('Storage（プロフィール画像）', () => {
+describe('Storage（すべて拒否）', () => {
   const avatar = `events/${E}/avatars/A-1`;
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 
@@ -494,38 +494,12 @@ describe('Storage（プロフィール画像）', () => {
 
   const get = (user: User, path = avatar) => getBytes(ref(ctx(user).storage(), path));
 
-  it('開場中の来場者は読める', async () => {
-    await assertSucceeds(get('visitor1'));
-  });
-  it('来場者は開場前・閉場後は読めない', async () => {
-    for (const state of ['scheduled', 'closed']) {
-      await setEventState(state);
-      await assertFails(get('visitor1'));
-    }
-  });
-  it('スタッフは開場前・開場中に読め、閉場後は読めない', async () => {
-    await setEventState('scheduled');
-    await assertSucceeds(get('studentFree'));
-    await assertSucceeds(get('faculty'));
-    await setEventState('closed');
-    await assertFails(get('studentFree'));
-  });
-  it('別イベント・未入場・未ログイン・管理者でない人は読めない', async () => {
-    for (const u of ['visitorOther', 'anonymous', 'unauthenticated', 'adminAnon', 'adminLegacy', 'adminStale', 'adminMustChange', 'passwordOnly'] as const) {
+  it('画像登録の廃止に伴い、どの利用者も読み書きできない', async () => {
+    for (const u of ['visitor1', 'studentFree', 'studentA', 'faculty', 'admin', 'adminStaffRole', 'anonymous', 'unauthenticated'] as const) {
       await assertFails(get(u));
-    }
-  });
-  it('運営アカウントは読める', async () => {
-    await assertSucceeds(get('admin'));
-    await assertSucceeds(get('adminStaffRole'));
-  });
-  it('誰もアップロード・削除できない（アップロードは関数で行う）', async () => {
-    for (const u of ['visitor1', 'studentA', 'admin'] as const) {
+      await assertFails(get(u, 'other/file'));
       await assertFails(uploadBytes(ref(ctx(u).storage(), avatar), png));
       await assertFails(uploadBytes(ref(ctx(u).storage(), `events/${E}/avatars/new`), png));
     }
-  });
-  it('定義していないパスは誰も読めない', async () => {
-    await assertFails(get('admin', 'other/file'));
   });
 });

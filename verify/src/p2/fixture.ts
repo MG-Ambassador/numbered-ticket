@@ -2,7 +2,6 @@
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { expect } from 'vitest';
 import {
@@ -25,8 +24,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_
   throw new Error('Firestore・Auth の Emulator の中で実行すること（npm run test:functions）');
 }
 
-export const BUCKET = `${PROJECT_ID}.appspot.com`;
-const app = getApps()[0] ?? initializeApp({ projectId: PROJECT_ID, storageBucket: BUCKET });
+const app = getApps()[0] ?? initializeApp({ projectId: PROJECT_ID });
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
@@ -34,7 +32,7 @@ export const auth = getAuth(app);
 export const NOW = new Date('2027-03-20T02:00:00Z'); // 11:00 JST
 
 export function makeDeps(now: Date = NOW): Deps {
-  return { db, auth, rateLimitSecret: () => 'test-secret', now: () => now, bucket: () => getStorage(app).bucket() };
+  return { db, auth, rateLimitSecret: () => 'test-secret', now: () => now };
 }
 
 export const ENTRY_CODE = '0384712';
@@ -94,7 +92,7 @@ export async function seedEvent(opts: SeedOptions = {}): Promise<string> {
       paused: s.paused ?? false,
       queueLimit: s.queueLimit ?? DEFAULTS.studentQueueLimit.default,
       updatedAt: ts,
-      profile: { nickname: `学生${i}`, department: '心理学部 2年', bio: '', tags: [], avatarPath: null },
+      profile: { nickname: `学生${i}`, department: '心理学部 2年', bio: '', tags: [] },
       location: `A-${i + 1}`,
       occupant: occupied ? { uid: `staff-${s.id}`, since: ts } : null,
     };

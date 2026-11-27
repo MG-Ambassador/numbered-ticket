@@ -88,8 +88,6 @@ export interface StudentProfile {
   bio: string;
   /** 得意テーマのタグ（# は付けない） */
   tags: string[];
-  /** Storage のアバター画像のパス。なければ頭文字を表示 */
-  avatarPath: string | null;
 }
 
 export interface FacultyProfile {

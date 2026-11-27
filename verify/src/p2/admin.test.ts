@@ -1,12 +1,10 @@
 // P2 管理者の関数（A-01〜A-07）と、その部品（コード生成・CSV・統計）。
 import { Timestamp } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   FACULTY_SLOT_ID,
   entryUrl,
   paths,
-  storagePaths,
   type AdminRequest,
   type AuditLogDoc,
   type BoardDoc,
@@ -239,7 +237,7 @@ describe('A-04 枠の登録', () => {
       location: 'A-1',
       queueLimit: 5,
       occupant: null,
-      profile: { nickname: 'みさき', bio: '部活と勉強の両立、"留学"の話ができます', tags: ['留学', '部活'], avatarPath: null },
+      profile: { nickname: 'みさき', bio: '部活と勉強の両立、"留学"の話ができます', tags: ['留学', '部活'] },
     });
     expect((await read<StudentSlotDoc>(paths.slot(eid, slotIds[1]!))).profile.tags).toEqual(['就職', '資格']);
     expect((await read<QueueDoc>(paths.queue(eid, slotIds[0]!))).waiting).toEqual([]);
@@ -275,14 +273,14 @@ describe('A-04 枠の登録', () => {
     await expectReason(staff.staffLogin(deps, anonymous('st-old'), { code: SLOT_CODES.s2! }), 'wrongCode');
   });
 
-  it('ID つきの行は既存の枠を直す。占有・画像・上限は残り、ブースの位置もそろう', async () => {
+  it('ID つきの行は既存の枠を直す。占有・上限は残り、ブースの位置もそろう', async () => {
     await seedEvent();
-    await db.doc(paths.slot('e1', 's1')).update({ 'profile.avatarPath': 'events/e1/avatars/s1', queueLimit: 7 });
+    await db.doc(paths.slot('e1', 's1')).update({ queueLimit: 7 });
     await call({ op: 'importSlots', eid: 'e1', csv: 'id,nickname,department,bio,tags,location,order\ns1,新しい名前,,,,B-9,3\n' });
 
     const slot = await read<StudentSlotDoc>(paths.slot('e1', 's1'));
     expect(slot).toMatchObject({ location: 'B-9', order: 3, queueLimit: 7, occupant: { uid: 'staff-s1' } });
-    expect(slot.profile).toMatchObject({ nickname: '新しい名前', avatarPath: 'events/e1/avatars/s1' });
+    expect(slot.profile).toMatchObject({ nickname: '新しい名前' });
     expect((await read<QueueDoc>(paths.queue('e1', 's1'))).booths).toEqual([{ staffUid: 'staff-s1', booth: 'B-9' }]);
   });
 
@@ -335,25 +333,6 @@ describe('A-04 枠の登録', () => {
     expect(Object.keys((await read<BoardDoc>(paths.board('e1'))).slots).sort()).toEqual([FACULTY_SLOT_ID, 's1']);
     // 消した枠のスタッフコードも消える
     expect((await read<SecretCodesDoc>(paths.secretCodes('e1'))).slotCodes).toEqual({ s1: SLOT_CODES.s1 });
-  });
-
-  it('プロフィール画像: 形式を中身で確かめて Storage に置き、avatarPath を入れる', async () => {
-    await seedEvent();
-    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64)]);
-    await call({ op: 'uploadAvatar', eid: 'e1', slotId: 's1', contentType: 'image/png', dataBase64: png.toString('base64') });
-
-    const path = storagePaths.avatar('e1', 's1');
-    expect((await read<StudentSlotDoc>(paths.slot('e1', 's1'))).profile.avatarPath).toBe(path);
-    const [meta] = await getStorage().bucket(deps.bucket().name).file(path).getMetadata();
-    expect(meta.contentType).toBe('image/png');
-
-    // PNG と名乗る JPEG、HTML、大きすぎる画像、教員相談の枠は拒否
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]);
-    await expectReason(call({ op: 'uploadAvatar', eid: 'e1', slotId: 's1', contentType: 'image/png', dataBase64: jpeg.toString('base64') }), 'invalidInput');
-    await expectReason(call({ op: 'uploadAvatar', eid: 'e1', slotId: 's1', contentType: 'text/html', dataBase64: 'PGgxPg==' }), 'invalidInput');
-    const big = Buffer.concat([jpeg, Buffer.alloc(600 * 1024)]);
-    await expectReason(call({ op: 'uploadAvatar', eid: 'e1', slotId: 's1', contentType: 'image/jpeg', dataBase64: big.toString('base64') }), 'invalidInput');
-    await expectReason(call({ op: 'uploadAvatar', eid: 'e1', slotId: FACULTY_SLOT_ID, contentType: 'image/jpeg', dataBase64: jpeg.toString('base64') }), 'invalidInput');
   });
 
   it('URL・SNS の ID の判定', () => {

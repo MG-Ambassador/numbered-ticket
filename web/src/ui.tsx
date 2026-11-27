@@ -1,6 +1,5 @@
 // 来場者・スタッフで共通の小さな部品（docs/mockup.html と同じ見た目）
-import { useEffect, useState, type ReactNode } from 'react';
-import { getBlob, ref, type FirebaseStorage } from 'firebase/storage';
+import type { ReactNode } from 'react';
 import { BOARD_STATUS_LABELS, type BoardSlot, type BoardStatus } from '@nt/shared';
 
 const ICONS = {
@@ -89,32 +88,11 @@ export function Loading({ text = '読み込んでいます' }: { text?: string }
   );
 }
 
-/**
- * プロフィール画像（Storage）。公開 URL は使わず getBlob() で取る（設計書 4章）。
- * 画像がない・読めないときは頭文字を出す。
- */
-export function Avatar({ storage, path, name, off }: { storage: FirebaseStorage; path: string | null; name: string; off?: boolean }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!path) return setUrl(null);
-    let objectUrl: string | null = null;
-    let alive = true;
-    getBlob(ref(storage, path)).then(
-      (blob) => {
-        if (!alive) return;
-        objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
-      },
-      () => alive && setUrl(null),
-    );
-    return () => {
-      alive = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [storage, path]);
+/** 相談員の頭文字アイコン */
+export function Avatar({ name, off }: { name: string; off?: boolean }) {
   return (
     <span className={`win${off ? ' off' : ''}`} aria-hidden="true">
-      {url ? <img src={url} alt="" /> : name.charAt(0)}
+      {name.charAt(0)}
     </span>
   );
 }
