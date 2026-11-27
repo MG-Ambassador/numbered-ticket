@@ -133,7 +133,7 @@ node scripts/create-operator.mjs --project oc-ticket-2027 --login-id <運営ID> 
 node scripts/create-operator.mjs --project oc-ticket-2027 --login-id <運営ID> --reset --execute                               # 再発行
 ```
 
-- **デプロイの前提**: `createCustomToken` は関数の実行サービスアカウントが自分自身に `roles/iam.serviceAccountTokenCreator` を持っていないと `iam.serviceAccounts.signBlob` で失敗する（Emulator では不要）。初めて出す前に付ける: `gcloud iam service-accounts add-iam-policy-binding <実行SA> --member=serviceAccount:<実行SA> --role=roles/iam.serviceAccountTokenCreator --project oc-ticket-2027`（実行SA は `gcloud functions describe operatorLogin --region asia-northeast1 --gen2 --format='value(serviceConfig.serviceAccountEmail)'` で分かる）
+- **デプロイの前提**: `createCustomToken` は関数の実行サービスアカウントが自分自身に `roles/iam.serviceAccountTokenCreator` を持っていないと `iam.serviceAccounts.signBlob` で失敗する（Emulator では不要）。初めて出す前に付ける: `gcloud iam service-accounts add-iam-policy-binding <実行SA> --member=serviceAccount:<実行SA> --role=roles/iam.serviceAccountTokenCreator --project oc-ticket-2027`（実行SA は `gcloud functions describe adminApi --region asia-northeast1 --gen2 --format='value(serviceConfig.serviceAccountEmail)'` で分かる）
 
 ### 10. トランザクションの再試行
 
