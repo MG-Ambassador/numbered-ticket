@@ -452,6 +452,23 @@ describe('Firestore', () => {
     });
   });
 
+  describe('運用状態 system/runtimeStatus', () => {
+    it('運営アカウントのみ読める。来場者・スタッフ・無効な管理者・未ログインは読めず、誰も書けない', async () => {
+      await env.withSecurityRulesDisabled(async (c) => {
+        await setDoc(doc(c.firestore(), 'system/runtimeStatus'), {
+          hotInstances: { desired: 0, applied: 0, checkedAt: new Date() },
+          firestoreReads: { today: 100, date: '2027-03-20', updatedAt: new Date() },
+        });
+      });
+      await assertSucceeds(read('admin', 'system/runtimeStatus'));
+      await assertSucceeds(read('adminStaffRole', 'system/runtimeStatus'));
+      for (const u of ['visitor1', 'studentA', 'faculty', 'anonymous', 'unauthenticated', 'adminStale', 'adminDisabled', 'adminLegacy'] as const) {
+        await assertFails(read(u, 'system/runtimeStatus'));
+      }
+      await assertFails(setDoc(doc(fs('admin'), 'system/runtimeStatus'), { hotInstances: null }));
+    });
+  });
+
   // 設計書 7.4-4 を本番ルールで確かめる。本番では events を closed にした時点で止まる（15秒以内）。
   // Emulator は購読対象が次に更新されるまで止まらないので、閉場処理で整理券も更新する前提で確かめる。
   describe('閉場すると購読中の整理券が止まる（7.4-4）', () => {

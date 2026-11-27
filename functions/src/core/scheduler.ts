@@ -10,6 +10,7 @@ import {
   type AuditLogDoc,
   type EventDoc,
   type QueueDoc,
+  type RuntimeStatusDoc,
   type SlotDoc,
   type StatsDoc,
   type TicketDoc,
@@ -24,6 +25,12 @@ import { assertTransition } from './transitions.js';
 
 /** 閉場からこの時間が過ぎたら削除する */
 export const PURGE_AFTER_CLOSE_MS = 60 * 60_000;
+/** 開場のこの時間前から常駐（minInstances=1）にする */
+export const WARMUP_BEFORE_OPEN_MS = 30 * 60_000;
+/** 常駐設定に変化がなくても Cloud Run の実状態を再確認する間隔 */
+export const HOT_RESYNC_MS = 15 * 60_000;
+/** 本日の Firestore 読み取り回数を Cloud Monitoring から取り直す間隔 */
+export const READS_REFRESH_MS = 5 * 60_000;
 
 export interface TickResult {
   opened: string[];
@@ -31,6 +38,8 @@ export interface TickResult {
   /** 復帰期限切れで expired にした整理券の数 */
   expiredSkipped: number;
   purged: string[];
+  /** 今回 Cloud Run の常駐台数を変更したときだけ 0 または 1。変更なしなら null */
+  hotInstances: 0 | 1 | null;
 }
 
 async function systemAudit(db: Firestore, eid: string, action: AuditAction, now: Date): Promise<void> {
@@ -51,8 +60,9 @@ export async function tick(deps: Deps): Promise<TickResult> {
   const { db } = deps;
   const now = deps.now();
   const t = now.getTime();
-  const result: TickResult = { opened: [], closed: [], expiredSkipped: 0, purged: [] };
+  const result: TickResult = { opened: [], closed: [], expiredSkipped: 0, purged: [], hotInstances: null };
   const events = await db.collection('events').where('state', 'in', ['scheduled', 'open', 'closed']).get();
+  let needHot = false;
 
   for (const doc of events.docs) {
     const eid = doc.id;
@@ -86,13 +96,78 @@ export async function tick(deps: Deps): Promise<TickResult> {
         if (t >= closesAt + PURGE_AFTER_CLOSE_MS) {
           await purgeEvent(deps, eid, now);
           result.purged.push(eid);
+          state = 'purged';
         }
+      }
+      // 開場中、または開場30分前〜閉場前のイベントが1つでもあれば常駐オン
+      if (state === 'open' || (state === 'scheduled' && t >= opensAt - WARMUP_BEFORE_OPEN_MS && t < closesAt)) {
+        needHot = true;
       }
     } catch (e) {
       console.error(`tick failed for event ${eid}`, e);
     }
   }
+
+  result.hotInstances = await syncRuntimeStatus(deps, needHot ? 1 : 0, now);
   return result;
+}
+
+/**
+ * 常駐設定の自動切替と、本日の Firestore 読み取り回数の更新。
+ * 失敗してもイベントの開場・閉場には影響させない。
+ */
+async function syncRuntimeStatus(deps: Deps, desired: 0 | 1, now: Date): Promise<0 | 1 | null> {
+  if (!deps.setHotInstances && !deps.getTodayFirestoreReads) return null;
+  const ref = deps.db.doc(paths.runtimeStatus);
+  const t = now.getTime();
+  const ts = Timestamp.fromDate(now);
+
+  let current: Partial<RuntimeStatusDoc> = {};
+  try {
+    const snap = await ref.get();
+    if (snap.exists) current = snap.data() as Partial<RuntimeStatusDoc>;
+  } catch (e) {
+    console.error('failed to read runtimeStatus', e);
+  }
+
+  const patch: Partial<RuntimeStatusDoc> = {};
+  let changedHot: 0 | 1 | null = null;
+
+  if (deps.setHotInstances) {
+    const prev = current.hotInstances;
+    const due = !prev || prev.applied !== desired || t - prev.checkedAt.toMillis() >= HOT_RESYNC_MS;
+    if (due) {
+      try {
+        const changed = await deps.setHotInstances(desired);
+        if (changed) changedHot = desired;
+        patch.hotInstances = { desired, applied: desired, checkedAt: ts };
+      } catch (e) {
+        console.error('syncHotInstances failed', e);
+      }
+    }
+  }
+
+  if (deps.getTodayFirestoreReads) {
+    const prev = current.firestoreReads;
+    const due = !prev || t - prev.updatedAt.toMillis() >= READS_REFRESH_MS;
+    if (due) {
+      try {
+        const { today, date } = await deps.getTodayFirestoreReads(now);
+        patch.firestoreReads = { today, date, updatedAt: ts };
+      } catch (e) {
+        console.error('refreshFirestoreReads failed', e);
+      }
+    }
+  }
+
+  if (Object.keys(patch).length > 0) {
+    try {
+      await ref.set(patch, { merge: true });
+    } catch (e) {
+      console.error('failed to write runtimeStatus', e);
+    }
+  }
+  return changedHot;
 }
 
 // ---------------------------------------------------------------------------

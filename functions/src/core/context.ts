@@ -10,6 +10,10 @@ export interface Deps {
   /** RATE_LIMIT_SECRET（HMAC の鍵）。使う関数だけが秘密の値を読むよう関数にしている */
   rateLimitSecret: () => string;
   now: () => Date;
+  /** issueTicket・callNext の常駐台数（0 / 1）を Cloud Run へ反映する。実際に変更したら true */
+  setHotInstances?: (count: 0 | 1) => Promise<boolean>;
+  /** 本日（JST 0:00〜）の Firestore 読み取り合計を Cloud Monitoring から取得する */
+  getTodayFirestoreReads?: (now: Date) => Promise<{ today: number; date: string }>;
 }
 
 /** 呼び出し元。callable の req.auth から作る */

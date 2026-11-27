@@ -371,3 +371,22 @@ export interface StatsDoc {
   issuedByHour: Record<string, number>;
   createdAt: TimestampLike;
 }
+
+/**
+ * 定期処理が書き込む運用状態（system/runtimeStatus）。読める人: 管理者のみ。
+ * - hotInstances: issueTicket・callNext の常駐台数（0 / 1）の同期結果
+ * - firestoreReads: 当日（JST 0:00〜）の Firestore 読み取り合計（Cloud Monitoring）
+ */
+export interface RuntimeStatusDoc {
+  hotInstances: {
+    desired: 0 | 1;
+    applied: 0 | 1;
+    checkedAt: TimestampLike;
+  } | null;
+  firestoreReads: {
+    today: number;
+    /** YYYY-MM-DD（JST） */
+    date: string;
+    updatedAt: TimestampLike;
+  } | null;
+}

@@ -20,7 +20,8 @@ PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectN
 RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 # cloudbilling: firebase deploy が課金状況を確かめるのに使う（デプロイ用のアカウントでは有効にできない。2026-11-27 に判明）
-gcloud services enable iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com cloudbilling.googleapis.com --project "$PROJECT_ID"
+# monitoring: scheduledTick が本日の Firestore 読み取り回数を取得するのに使う
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com cloudresourcemanager.googleapis.com cloudbilling.googleapis.com monitoring.googleapis.com --project "$PROJECT_ID"
 
 if ! gcloud iam service-accounts describe "$SA" --project "$PROJECT_ID" >/dev/null 2>&1; then
   gcloud iam service-accounts create "$SA_NAME" --project "$PROJECT_ID" --display-name "GitHub Actions deploy"
@@ -46,6 +47,16 @@ gcloud iam service-accounts add-iam-policy-binding "${PROJECT_ID}@appspot.gservi
 # 秘密の値は実行用のサービスアカウントに先に読ませておく（デプロイ用には Secret Manager の管理権限を渡さない）
 gcloud secrets add-iam-policy-binding RATE_LIMIT_SECRET --project "$PROJECT_ID" \
   --member "serviceAccount:$RUNTIME_SA" --role roles/secretmanager.secretAccessor >/dev/null
+# scheduledTick が常駐台数（issueticket・callnext）を自動切替し、本日の Firestore 読み取り回数を取得するための最小権限
+gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$RUNTIME_SA" --role roles/monitoring.viewer --condition None >/dev/null
+gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" --project "$PROJECT_ID" \
+  --member "serviceAccount:$RUNTIME_SA" --role roles/iam.serviceAccountUser >/dev/null
+for svc in issueticket callnext; do
+  if gcloud run services describe "$svc" --project "$PROJECT_ID" --region asia-northeast1 >/dev/null 2>&1; then
+    gcloud run services add-iam-policy-binding "$svc" --project "$PROJECT_ID" --region asia-northeast1 \
+      --member "serviceAccount:$RUNTIME_SA" --role roles/run.developer >/dev/null
+  fi
+done
 
 if ! gcloud iam workload-identity-pools describe "$POOL" --project "$PROJECT_ID" --location global >/dev/null 2>&1; then
   gcloud iam workload-identity-pools create "$POOL" --project "$PROJECT_ID" --location global --display-name "GitHub Actions"
