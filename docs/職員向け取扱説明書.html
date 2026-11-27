@@ -1,0 +1,1122 @@
+<title>整理券システム 取扱説明書</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* 構成: 1段組の「読む冊子」。章ごとに大きな見出し、画面のイラストは本文の横（狭い画面では下）に置く */
+:root {
+  --bg: #faf8f3;
+  --surface: #ffffff;
+  --sunk: #f1ede4;
+  --ink: #26231f;
+  --ink-soft: #5d574d;
+  --rule: #ddd5c6;
+  --mark: #ecec86;
+  --visitor: #a5481a; --visitor-wash: #fbeadf;
+  --staff: #2f6b4a; --staff-wash: #e3efe7;
+  --admin: #2f5a8a; --admin-wash: #e3ebf5;
+  --warn: #8a5a00; --warn-wash: #f8eed6;
+  --danger: #a8322a; --danger-wash: #f7e3e0;
+  --pin: #c0392b;
+  /* 画面イラストの中（実際のアプリと同じ配色。明るい画面のまま見せる） */
+  --app-paper: #f7f5f0; --app-raised: #fdfcf9; --app-sunk: #efebe3; --app-rule: #ddd6c9;
+  --app-ink: #232121; --app-soft: #5e584e; --app-light: #e6e67a; --app-on-ink: #fdfcf9;
+  --app-ok: #2f6b4a; --app-ok-wash: #e4efe7; --app-warn: #8a5a00; --app-warn-wash: #f6ecd6;
+  --frame: #2b2926;
+  --display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "BIZ UDPGothic", sans-serif;
+  --body: "BIZ UDPGothic", "Hiragino Sans", "Meiryo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1d1c1a; --surface: #262523; --sunk: #2f2d2a; --ink: #eeeae2; --ink-soft: #bdb6aa; --rule: #45413b; --mark: #6b6b1f;
+    --visitor: #f0a77c; --visitor-wash: #3a2a20; --staff: #8fd0aa; --staff-wash: #20332a; --admin: #9cc0ea; --admin-wash: #1f2c3d;
+    --warn: #e9c16f; --warn-wash: #3a3020; --danger: #f0928a; --danger-wash: #3d2422; --pin: #ef6b5d; --frame: #0f0e0d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1d1c1a; --surface: #262523; --sunk: #2f2d2a; --ink: #eeeae2; --ink-soft: #bdb6aa; --rule: #45413b; --mark: #6b6b1f;
+  --visitor: #f0a77c; --visitor-wash: #3a2a20; --staff: #8fd0aa; --staff-wash: #20332a; --admin: #9cc0ea; --admin-wash: #1f2c3d;
+  --warn: #e9c16f; --warn-wash: #3a3020; --danger: #f0928a; --danger-wash: #3d2422; --pin: #ef6b5d; --frame: #0f0e0d;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 18px; line-height: 1.9; letter-spacing: .02em;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 900px; margin: 0 auto; padding-block: 32px 80px; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 700; text-wrap: balance; margin: 0; letter-spacing: .04em; }
+h2 { font-size: 30px; line-height: 1.45; }
+h3 { font-size: 23px; line-height: 1.5; margin-top: 12px; }
+h4 { font-size: 19px; line-height: 1.5; }
+p { margin: 0; }
+b, strong { font-weight: 700; }
+.soft { color: var(--ink-soft); }
+.small { font-size: 16px; line-height: 1.8; }
+.mk { background: linear-gradient(transparent 55%, var(--mark) 55%); }
+section { display: flex; flex-direction: column; gap: 20px; }
+.stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+a { color: var(--admin); }
+code, .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: .92em; }
+:focus-visible { outline: 3px solid var(--admin); outline-offset: 2px; }
+
+/* 表紙 */
+.cover { border: 2px solid var(--ink); border-radius: 20px; background: var(--surface); padding: 36px 28px; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+.cover .eyebrow { font-size: 15px; letter-spacing: .18em; color: var(--ink-soft); }
+.cover h1 { font-size: 40px; line-height: 1.35; margin-top: 6px; }
+.cover .sub { font-size: 20px; margin-top: 10px; }
+.cover .meta { margin-top: 18px; font-size: 15px; color: var(--ink-soft); }
+.cover svg { width: 190px; height: auto; }
+@media (max-width: 640px) { .cover { grid-template-columns: 1fr; } .cover svg { width: 150px; justify-self: center; } .cover h1 { font-size: 32px; } }
+
+/* 目次 */
+.toc { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 22px 24px; }
+.toc ol { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 24px; }
+.toc a { display: flex; gap: 10px; padding: 6px 0; text-decoration: none; color: var(--ink); border-bottom: 1px dashed var(--rule); }
+.toc a span:first-child { font-family: var(--display); color: var(--ink-soft); min-width: 3.4em; }
+
+/* 章見出し */
+.ch-head { display: flex; gap: 16px; align-items: baseline; border-bottom: 3px solid var(--ink); padding-bottom: 10px; flex-wrap: wrap; }
+.ch-no { font-family: var(--display); font-size: 18px; color: var(--surface); background: var(--ink); border-radius: 999px; padding: 2px 14px; white-space: nowrap; }
+.who { font-size: 15px; border-radius: 999px; padding: 2px 12px; border: 1.5px solid currentColor; white-space: nowrap; }
+.who.v { color: var(--visitor); } .who.s { color: var(--staff); } .who.a { color: var(--admin); }
+
+/* 囲み */
+.box { border-radius: 14px; padding: 16px 20px; display: flex; gap: 14px; align-items: flex-start; }
+.box .ic { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 18px; }
+.box.tip { background: var(--staff-wash); } .box.tip .ic { background: var(--staff); color: var(--surface); }
+.box.warn { background: var(--warn-wash); } .box.warn .ic { background: var(--warn); color: var(--surface); }
+.box.danger { background: var(--danger-wash); border: 2px solid var(--danger); } .box.danger .ic { background: var(--danger); color: var(--surface); }
+.box.note { background: var(--admin-wash); } .box.note .ic { background: var(--admin); color: var(--surface); }
+.box > div { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+/* たとえ話の吹き出し */
+.say { position: relative; background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 14px 20px; margin-left: 64px; }
+.say::before { content: ""; position: absolute; left: -12px; top: 22px; width: 20px; height: 20px; background: var(--surface); border-left: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg); }
+.say-wrap { display: flex; align-items: flex-start; }
+.say-wrap svg { flex: none; width: 52px; height: 52px; margin-right: -52px; position: relative; top: 6px; }
+
+/* 手順 */
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: st; }
+.steps > li { counter-increment: st; display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: start; }
+.steps > li::before { content: counter(st); width: 44px; height: 44px; border-radius: 50%; background: var(--ink); color: var(--surface); display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 22px; line-height: 1; }
+.steps > li > div { min-width: 0; padding-top: 4px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ボタン名の表記（画面の文字と同じ） */
+.btnname { display: inline-block; font-weight: 700; border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 12px; line-height: 1.7; background: var(--surface); white-space: nowrap; font-size: .95em; }
+.btnname.dark { background: var(--ink); color: var(--surface); }
+.key { display: inline-block; border: 1.5px solid var(--ink-soft); border-bottom-width: 3px; border-radius: 6px; padding: 0 8px; line-height: 1.6; font-size: .9em; background: var(--surface); }
+
+/* 図と説明の並び */
+.fig { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: start; }
+.fig.rev { grid-template-columns: 1fr auto; }
+.fig > * { min-width: 0; }
+@media (max-width: 720px) { .fig, .fig.rev { grid-template-columns: 1fr; } .fig > .phone, .fig > .phones { justify-self: center; } }
+.caption { font-size: 15px; color: var(--ink-soft); text-align: center; margin-top: 8px; }
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.legend li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; }
+.pinno { width: 28px; height: 28px; border-radius: 50%; background: var(--pin); color: #fff; font-family: var(--display); font-weight: 700; font-size: 15px; display: grid; place-items: center; line-height: 1; margin-top: 3px; }
+
+/* スマホの絵 */
+.phones { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.phone { width: 260px; max-width: 100%; border: 9px solid var(--frame); border-radius: 34px; background: var(--app-paper); color: var(--app-ink); position: relative; padding: 26px 14px 18px; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 12.5px; line-height: 1.6; letter-spacing: .02em; display: flex; flex-direction: column; gap: 9px; box-shadow: 0 2px 0 var(--rule); }
+.phone::before { content: ""; position: absolute; top: 8px; left: 50%; width: 64px; height: 8px; margin-left: -32px; border-radius: 6px; background: var(--frame); }
+.phone .pin, .pc .pin { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--pin); color: #fff; font-family: var(--display); font-weight: 700; font-size: 14px; display: grid; place-items: center; line-height: 1; box-shadow: 0 0 0 3px #fff; z-index: 3; }
+.a-eye { font-size: 9.5px; letter-spacing: .16em; color: var(--app-soft); font-weight: 600; }
+.a-t1 { font-size: 19px; font-weight: 600; line-height: 1.4; }
+.a-t2 { font-size: 15px; font-weight: 600; }
+.a-sm { font-size: 11px; color: var(--app-soft); line-height: 1.55; }
+.a-btn { background: var(--app-ink); color: var(--app-on-ink); border-radius: 999px; text-align: center; padding: 8px; font-weight: 600; font-size: 12.5px; }
+.a-btn2 { border: 1.5px solid var(--app-ink); border-radius: 999px; text-align: center; padding: 6px; font-weight: 600; font-size: 12px; background: var(--app-raised); }
+.a-btn.off { background: var(--app-sunk); color: #8f877a; }
+.a-quiet { text-align: center; font-size: 11px; text-decoration: underline; color: var(--app-soft); }
+.a-in { border: 1.5px solid var(--app-rule); background: var(--app-raised); border-radius: 10px; padding: 7px 10px; font-size: 13px; color: var(--app-soft); }
+.a-code { border: 1.5px solid var(--app-ink); background: var(--app-raised); border-radius: 12px; padding: 8px; text-align: center; font-size: 22px; letter-spacing: .14em; font-variant-numeric: tabular-nums; font-weight: 600; }
+.a-card { background: var(--app-raised); border: 1px solid var(--app-rule); border-radius: 14px; padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; }
+.a-row { display: flex; align-items: center; gap: 8px; }
+.a-between { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.a-chip { display: inline-block; border-radius: 999px; padding: 0 8px; font-size: 10px; font-weight: 600; line-height: 1.8; }
+.a-chip.ok { background: var(--app-ok-wash); color: var(--app-ok); }
+.a-chip.acc { background: var(--app-light); color: var(--app-ink); }
+.a-chip.ps { background: var(--app-warn-wash); color: var(--app-warn); }
+.a-chip.pill { border: 1px solid var(--app-rule); background: var(--app-raised); color: var(--app-ink); font-weight: 500; }
+.a-chip.on { background: var(--app-ink); color: var(--app-on-ink); }
+.a-av { width: 38px; height: 38px; border-radius: 50%; background: var(--app-light); flex: none; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.a-seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--app-sunk); border-radius: 12px; padding: 3px; gap: 3px; font-size: 11.5px; text-align: center; }
+.a-seg span { padding: 5px 2px; border-radius: 9px; line-height: 1.35; }
+.a-seg span.sel { background: var(--app-raised); font-weight: 600; }
+.a-panel { background: var(--app-raised); border: 1px solid var(--app-rule); border-radius: 14px; }
+.a-panel > div { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; gap: 6px; }
+.a-panel > div + div { border-top: 1px solid var(--app-rule); }
+.a-sw { display: inline-block; vertical-align: middle; width: 34px; height: 20px; border-radius: 999px; background: var(--app-rule); position: relative; flex: none; }
+.a-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.a-sw.on { background: var(--app-ink); } .a-sw.on::after { left: 16px; }
+.a-pm { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--app-ink); display: grid; place-items: center; font-weight: 700; line-height: 1; }
+.a-qrow { background: var(--app-raised); border: 1px solid var(--app-rule); border-radius: 12px; padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; }
+.a-qrow.cur { border: 2px solid var(--app-ink); }
+.a-memo { background: var(--app-sunk); border-radius: 8px; padding: 5px 8px; font-size: 11px; }
+.a-bar { margin: 4px -14px -18px; background: var(--app-raised); border-top: 1px solid var(--app-rule); border-radius: 0 0 25px 25px; padding: 10px 14px 16px; display: flex; flex-direction: column; gap: 7px; }
+.a-big { font-size: 34px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.a-ticket { background: var(--app-raised); border: 1.5px solid var(--app-ink); border-radius: 16px; padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.a-ticket .span2 { grid-column: span 2; }
+.a-note { background: #e3eaf3; color: #2f5a8a; border-radius: 10px; padding: 6px 9px; font-size: 10.5px; line-height: 1.5; }
+.a-warnbox { background: var(--app-warn-wash); color: var(--app-warn); border-radius: 10px; padding: 6px 9px; font-size: 10.5px; line-height: 1.5; }
+.a-undo { background: var(--app-ink); color: var(--app-on-ink); border-radius: 12px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11.5px; position: relative; overflow: hidden; }
+.a-undo b { border: 1px solid var(--app-on-ink); border-radius: 999px; padding: 1px 9px; font-weight: 600; white-space: nowrap; }
+.a-undo i { position: absolute; left: 0; bottom: 0; height: 3px; width: 60%; background: var(--app-light); }
+.phone.call { background: var(--app-ink); color: var(--app-on-ink); }
+.phone.call .a-eye, .phone.call .a-sm { color: #d9d4ca; }
+.a-callwin { background: var(--app-light); color: var(--app-ink); border-radius: 16px; padding: 12px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.a-callwin b { font-size: 40px; line-height: 1.1; }
+.a-btn-on-ink { background: var(--app-light); color: var(--app-ink); border-radius: 999px; text-align: center; padding: 10px; font-weight: 700; font-size: 14px; }
+.a-sheet { margin: 0 -14px -18px; background: var(--app-raised); border-radius: 20px 20px 25px 25px; padding: 10px 14px 16px; display: flex; flex-direction: column; gap: 7px; box-shadow: 0 -2px 0 var(--app-rule); }
+.a-grip { width: 36px; height: 4px; border-radius: 4px; background: var(--app-rule); margin: 0 auto 2px; }
+
+/* パソコンの絵 */
+.pc { border: 9px solid var(--frame); border-top-width: 30px; border-radius: 14px; background: var(--app-paper); color: var(--app-ink); position: relative; padding: 14px 16px; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 12.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 10px; max-width: 100%; }
+.pc::before { content: "● ● ●"; position: absolute; top: -24px; left: 4px; font-size: 10px; color: #8f877a; letter-spacing: 2px; }
+.pc::after { content: attr(data-url); position: absolute; top: -26px; left: 70px; right: 10px; height: 20px; border-radius: 6px; background: #3d3a37; color: #d9d4ca; font-size: 11px; line-height: 20px; padding: 0 10px; overflow: hidden; white-space: nowrap; }
+.pc-scroll { overflow-x: auto; }
+.a-tabs { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--app-sunk); border-radius: 12px; padding: 3px; gap: 3px; text-align: center; font-size: 12px; min-width: 420px; }
+.a-tabs span { padding: 6px 2px; border-radius: 9px; }
+.a-tabs span.sel { background: var(--app-raised); font-weight: 600; }
+.a-table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 11.5px; line-height: 1.5; }
+.a-table th, .a-table td { text-align: left; border-bottom: 1px solid var(--app-rule); padding: 5px 6px; vertical-align: middle; }
+.a-table th { color: var(--app-soft); font-weight: 600; }
+.a-sel { border: 1.5px solid var(--app-rule); background: var(--app-raised); border-radius: 10px; padding: 5px 10px; font-size: 12px; }
+
+/* 一般の表 */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 14px; background: var(--surface); }
+table.t { border-collapse: collapse; width: 100%; font-size: 17px; line-height: 1.75; }
+table.t th, table.t td { padding: 12px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+table.t tr:last-child td { border-bottom: 0; }
+table.t thead th { background: var(--sunk); font-family: var(--display); font-size: 16px; white-space: nowrap; }
+table.t td:first-child { white-space: nowrap; font-weight: 700; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* 用語カード */
+.terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+.term { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.term h4 { font-size: 19px; }
+.term .ex { font-size: 15px; color: var(--ink-soft); }
+
+/* 3つの入口 */
+.doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.door { border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px; border: 2px solid currentColor; background: var(--surface); }
+.door.v { color: var(--visitor); } .door.s { color: var(--staff); } .door.a { color: var(--admin); }
+.door h4, .door p, .door div { color: var(--ink); }
+.door .lbl { font-family: var(--display); font-weight: 700; font-size: 20px; color: inherit; }
+.door .url { font-family: ui-monospace, Menlo, monospace; font-size: 15px; background: var(--sunk); border-radius: 8px; padding: 6px 10px; overflow-wrap: anywhere; color: var(--ink); }
+
+/* 流れ（時間の順） */
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.timeline li { display: grid; grid-template-columns: 130px 24px 1fr; gap: 14px; }
+.timeline .when { font-family: var(--display); font-weight: 700; text-align: right; padding-top: 2px; }
+.timeline .dot { position: relative; }
+.timeline .dot::before { content: ""; position: absolute; left: 10px; top: 0; bottom: 0; width: 4px; background: var(--rule); }
+.timeline .dot::after { content: ""; position: absolute; left: 3px; top: 8px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 4px solid var(--ink); }
+.timeline li:last-child .dot::before { bottom: auto; height: 12px; }
+.timeline .what { padding-bottom: 26px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+@media (max-width: 560px) { .timeline li { grid-template-columns: 24px 1fr; } .timeline .when { grid-column: 2; text-align: left; } .timeline .dot { grid-row: 1 / span 2; grid-column: 1; } .timeline .what { grid-column: 2; } }
+
+/* チェックリスト */
+.check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.check li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; }
+.check li::before { content: ""; width: 24px; height: 24px; border: 2.5px solid var(--ink); border-radius: 5px; margin-top: 5px; background: var(--surface); }
+.check-group { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; }
+.check-group h4 { border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
+
+/* 困ったとき */
+.faq { display: flex; flex-direction: column; gap: 12px; }
+.faq details { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; }
+.faq summary { cursor: pointer; padding: 14px 18px; font-weight: 700; font-family: var(--display); font-size: 19px; list-style: none; display: flex; gap: 12px; align-items: baseline; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::before { content: "Q"; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--warn); color: var(--surface); display: grid; place-items: center; font-size: 16px; }
+.faq details[open] summary { border-bottom: 1px dashed var(--rule); }
+.faq .ans { padding: 14px 18px 18px 60px; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 560px) { .faq .ans { padding-left: 18px; } }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.svgfig { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 16px; overflow-x: auto; }
+.svgfig svg { display: block; width: 100%; height: auto; min-width: 560px; }
+.svgfig svg text { font-family: var(--body); }
+.cut { border: 2px dashed var(--ink-soft); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 16px; position: relative; }
+.cut::before { content: "✂ 切り取って学生スタッフ・教員に配れます"; position: absolute; top: -14px; left: 20px; background: var(--bg); padding: 0 10px; font-size: 15px; color: var(--ink-soft); }
+.blank { display: inline-block; min-width: 12em; border-bottom: 2px solid var(--ink); }
+footer { font-size: 15px; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: 16px; }
+
+@media print {
+  body { font-size: 12pt; background: #fff; }
+  .wrap { gap: 28px; padding-block: 0; }
+  .toc a { border: 0; }
+  .ch { break-before: page; }
+  .phone, .pc, .box, .term, .door, .faq details, .check-group, .svgfig { break-inside: avoid; }
+  .faq details { display: block; }
+  .faq details > .ans { display: flex; }
+  .phones { gap: 8px; flex-wrap: nowrap; }
+  .phones:has(> div:nth-child(4)) { flex-wrap: wrap; }
+  .phones > div { width: 196px; flex: none; }
+  .phones .phone { width: 100%; padding-inline: 10px; }
+  .phones .a-bar, .phones .a-sheet { margin-inline: -10px; padding-inline: 10px; }
+  .a-code { font-size: 18px; letter-spacing: .08em; white-space: nowrap; }
+  .a-chip, .a-eye { white-space: nowrap; }
+  .cut { padding: 18px 14px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="person" viewBox="0 0 60 80">
+      <circle cx="30" cy="20" r="14" fill="currentColor"/>
+      <path d="M6 78c0-18 10-32 24-32s24 14 24 32z" fill="currentColor"/>
+    </symbol>
+    <symbol id="hand-phone" viewBox="0 0 24 40">
+      <rect x="1" y="1" width="22" height="38" rx="5" fill="#2b2926"/>
+      <rect x="4" y="6" width="16" height="26" rx="2" fill="#e6e67a"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<!-- ===================== 表紙 ===================== -->
+<header class="cover">
+  <div>
+    <div class="eyebrow">オープンキャンパス 個別相談</div>
+    <h1>整理券システム<br>取扱説明書</h1>
+    <p class="sub">職員の方が、ひとりで準備から当日の運営までできるようになるための説明書です。</p>
+    <p class="meta">2026年11月版 ／ 対象：システムを引き継ぐ大学職員の方</p>
+  </div>
+  <svg viewBox="0 0 200 200" role="img" aria-label="スマートフォンに整理券 No.104 が表示されている絵">
+    <circle cx="100" cy="100" r="96" fill="var(--sunk)"/>
+    <rect x="58" y="22" width="84" height="156" rx="16" fill="#2b2926"/>
+    <rect x="65" y="36" width="70" height="128" rx="6" fill="#f7f5f0"/>
+    <text x="100" y="62" text-anchor="middle" font-size="9" fill="#5e584e" letter-spacing="2">整理券</text>
+    <text x="100" y="96" text-anchor="middle" font-size="26" font-weight="700" fill="#232121">104</text>
+    <rect x="74" y="108" width="52" height="16" rx="8" fill="#e6e67a"/>
+    <text x="100" y="120" text-anchor="middle" font-size="9" fill="#232121">あと2組</text>
+    <rect x="74" y="134" width="52" height="16" rx="8" fill="#232121"/>
+    <text x="100" y="146" text-anchor="middle" font-size="8" fill="#fdfcf9">およそ15分</text>
+  </svg>
+</header>
+
+<!-- ===================== この説明書の使い方 ===================== -->
+<section>
+  <h2>この説明書の読み方</h2>
+  <div class="two">
+    <div class="box note"><span class="ic">1</span><div><b>はじめて読むとき</b><p>第1章〜第3章を読んでください。「何をするしくみか」「どんな言葉が出てくるか」がわかります。15分ほどで読めます。</p></div></div>
+    <div class="box note"><span class="ic">2</span><div><b>準備をするとき</b><p>第4章で全体の流れを見てから、第5章の手順どおりに進めてください。</p></div></div>
+    <div class="box note"><span class="ic">3</span><div><b>当日</b><p>第5章の「当日の操作」と、第9章の「困ったとき」を手元に置いてください。</p></div></div>
+    <div class="box note"><span class="ic">4</span><div><b>学生スタッフ・教員に渡すもの</b><p>第6章は切り取って配れるようにしてあります。</p></div></div>
+  </div>
+  <p>この説明書では、画面に出てくる<b>ボタンの名前</b>を <span class="btnname">このように</span> 囲んで書いています。画面の文字とまったく同じなので、探すときの目印にしてください。画面の絵にある <span class="pinno" style="display:inline-grid;vertical-align:middle;margin:0">1</span> のような赤い丸の数字は、絵の横の説明と対応しています。</p>
+  <nav class="toc" aria-label="目次">
+    <b style="font-family:var(--display);font-size:20px">目次</b>
+    <ol>
+      <li><a href="#ch1"><span>第1章</span><span>このシステムは何をするもの？</span></a></li>
+      <li><a href="#ch2"><span>第2章</span><span>先に覚えておく言葉</span></a></li>
+      <li><a href="#ch3"><span>第3章</span><span>3つの入口（アドレス）</span></a></li>
+      <li><a href="#ch4"><span>第4章</span><span>準備から当日までの流れ</span></a></li>
+      <li><a href="#ch5"><span>第5章</span><span>管理画面の使い方（職員の方）</span></a></li>
+      <li><a href="#ch6"><span>第6章</span><span>スタッフ画面の使い方（配布用）</span></a></li>
+      <li><a href="#ch7"><span>第7章</span><span>来場者の画面（案内のために）</span></a></li>
+      <li><a href="#ch8"><span>第8章</span><span>整理券の一生</span></a></li>
+      <li><a href="#ch9"><span>第9章</span><span>困ったとき</span></a></li>
+      <li><a href="#ch10"><span>第10章</span><span>守ってほしいこと・連絡先</span></a></li>
+      <li><a href="#check"><span>付録</span><span>当日のチェックリスト</span></a></li>
+    </ol>
+  </nav>
+</section>
+
+<!-- ===================== 第1章 ===================== -->
+<section class="ch" id="ch1">
+  <div class="ch-head"><span class="ch-no">第1章</span><h2>このシステムは何をするもの？</h2></div>
+
+  <h3>ひとことで言うと</h3>
+  <p style="font-size:21px;line-height:1.8">病院や銀行でもらう<span class="mk"><b>「番号札」を、来場者のスマートフォンに配るしくみ</b></span>です。</p>
+  <p>オープンキャンパスの「個別相談」には、<b>学生による相談</b>と<b>教員による相談</b>があります。これまでは相談ブースの前に列ができ、来場者はずっと立って待つ必要がありました。このシステムを使うと、来場者は整理券をスマホで受け取り、<b>順番が来るまで模擬授業やキャンパスツアーなど、ほかの企画を見て回れます</b>。順番が来ると、スマホの画面に「お呼び出しです」と大きく表示されます。</p>
+
+  <div class="svgfig">
+    <svg viewBox="0 0 820 300" role="img" aria-label="来場者・学生スタッフ・教員・職員の関係図">
+      <rect x="0" y="0" width="820" height="300" fill="var(--surface)"/>
+      <!-- 来場者 -->
+      <g transform="translate(40,70)">
+        <use href="#person" width="70" height="94" style="color:var(--visitor)"/>
+        <use href="#hand-phone" x="54" y="46" width="22" height="36"/>
+      </g>
+      <text x="85" y="200" text-anchor="middle" font-size="18" font-weight="700" fill="var(--visitor)">来場者</text>
+      <text x="85" y="224" text-anchor="middle" font-size="14" fill="var(--ink-soft)">高校生・保護者</text>
+      <text x="85" y="244" text-anchor="middle" font-size="14" fill="var(--ink-soft)">自分のスマホで</text>
+      <!-- 真ん中 -->
+      <rect x="300" y="88" width="220" height="96" rx="18" fill="var(--sunk)" stroke="var(--ink)" stroke-width="2"/>
+      <text x="410" y="126" text-anchor="middle" font-size="18" font-weight="700" fill="var(--ink)">整理券システム</text>
+      <text x="410" y="152" text-anchor="middle" font-size="14" fill="var(--ink-soft)">インターネット上にあります</text>
+      <text x="410" y="172" text-anchor="middle" font-size="14" fill="var(--ink-soft)">（機械の設置は不要）</text>
+      <!-- 矢印 来場者 -->
+      <path d="M150 112 H290" stroke="var(--visitor)" stroke-width="3" fill="none" marker-end="url(#arV)"/>
+      <text x="220" y="102" text-anchor="middle" font-size="15" fill="var(--visitor)">① 整理券を取る</text>
+      <path d="M290 160 H150" stroke="var(--staff)" stroke-width="3" fill="none" marker-end="url(#arS)" stroke-dasharray="7 5"/>
+      <text x="220" y="184" text-anchor="middle" font-size="15" fill="var(--staff)">③ 呼び出しが届く</text>
+      <!-- スタッフ -->
+      <g transform="translate(600,26)">
+        <use href="#person" width="52" height="70" style="color:var(--staff)"/>
+        <use href="#hand-phone" x="40" y="34" width="16" height="27"/>
+      </g>
+      <text x="720" y="58" font-size="17" font-weight="700" fill="var(--staff)">学生スタッフ</text>
+      <text x="720" y="80" font-size="14" fill="var(--ink-soft)">自分のスマホで</text>
+      <g transform="translate(600,150)">
+        <use href="#person" width="52" height="70" style="color:var(--staff)"/>
+        <use href="#hand-phone" x="40" y="34" width="16" height="27"/>
+      </g>
+      <text x="720" y="182" font-size="17" font-weight="700" fill="var(--staff)">教員</text>
+      <text x="720" y="204" font-size="14" fill="var(--ink-soft)">自分のスマホで</text>
+      <path d="M590 96 L530 116" stroke="var(--staff)" stroke-width="3" fill="none" marker-end="url(#arS)"/>
+      <path d="M590 186 L530 164" stroke="var(--staff)" stroke-width="3" fill="none" marker-end="url(#arS)"/>
+      <text x="560" y="140" text-anchor="middle" font-size="15" fill="var(--staff)">② 次の方を呼ぶ</text>
+      <!-- 職員 -->
+      <g transform="translate(372,214)">
+        <use href="#person" width="40" height="54" style="color:var(--admin)"/>
+      </g>
+      <rect x="418" y="236" width="44" height="30" rx="3" fill="var(--admin)"/>
+      <rect x="410" y="266" width="60" height="5" rx="2" fill="var(--admin)"/>
+      <text x="490" y="250" font-size="17" font-weight="700" fill="var(--admin)">職員（管理者）</text>
+      <text x="490" y="272" font-size="14" fill="var(--ink-soft)">パソコンで準備・見守り</text>
+      <path d="M410 214 V192" stroke="var(--admin)" stroke-width="3" fill="none" marker-end="url(#arA)"/>
+      <defs>
+        <marker id="arV" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--visitor)"/></marker>
+        <marker id="arS" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--staff)"/></marker>
+        <marker id="arA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--admin)"/></marker>
+      </defs>
+    </svg>
+  </div>
+
+  <h3>登場する人は4種類</h3>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>だれ</th><th>使うもの</th><th>すること</th></tr></thead>
+    <tbody>
+      <tr><td style="color:var(--visitor)">来場者</td><td>自分のスマホ</td><td>会場のポスターの QR コードを読み取り、整理券を受け取って待つ。呼ばれたらブースへ行く。</td></tr>
+      <tr><td style="color:var(--staff)">学生スタッフ</td><td>自分のスマホ</td><td>自分の列に並んだ来場者を、1組ずつ呼び出して相談にのる。</td></tr>
+      <tr><td style="color:var(--staff)">教員</td><td>自分のスマホ</td><td>教員相談の列（全学で1本）の先頭の方を、自分の座っているブースに呼ぶ。</td></tr>
+      <tr><td style="color:var(--admin)">職員（管理者）</td><td>パソコン（スマホでも可）</td><td>事前の準備（日時・学生の登録・コードの配布）と、当日の見守り・トラブル対応。<b>この説明書を読んでいるあなたです。</b></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>このシステムのよいところ</h3>
+  <div class="two">
+    <div class="box tip"><span class="ic">✓</span><div><b>機械を用意しなくてよい</b><p>受付用のタブレットや大きなモニターは使いません。来場者もスタッフも、自分のスマホだけで使えます。</p></div></div>
+    <div class="box tip"><span class="ic">✓</span><div><b>アプリを入れなくてよい</b><p>QR コードを読み取れば、ふだんのインターネットの画面（ブラウザ）でそのまま動きます。</p></div></div>
+    <div class="box tip"><span class="ic">✓</span><div><b>個人情報を集めない</b><p>来場者の名前・電話番号・学校名は聞きません。番号で区別します。相談メモは閉場時に自動で消えます。</p></div></div>
+    <div class="box tip"><span class="ic">✓</span><div><b>開場・閉場は自動</b><p>決めた時刻になると自動で受付が始まり、自動で終わります。</p></div></div>
+  </div>
+</section>
+
+<!-- ===================== 第2章 ===================== -->
+<section class="ch" id="ch2">
+  <div class="ch-head"><span class="ch-no">第2章</span><h2>先に覚えておく言葉</h2></div>
+  <p>この説明書や画面に出てくる言葉です。わからなくなったら、このページに戻ってきてください。</p>
+
+  <h3>パソコン・スマホの言葉</h3>
+  <div class="terms">
+    <div class="term"><h4>アドレス（URL）</h4><p>インターネット上の「住所」です。<code>https://</code> で始まる文字の並びのことです。</p><p class="ex">例：https://oc-ticket-2027.web.app/admin</p></div>
+    <div class="term"><h4>ブラウザ</h4><p>インターネットのページを見るためのソフトです。パソコンなら「Chrome」「Edge」、iPhone なら「Safari」です。</p></div>
+    <div class="term"><h4>QR コード</h4><p>白黒の四角い模様です。スマホのカメラを向けると、そのアドレスのページが開きます。</p></div>
+    <div class="term"><h4>タップ／クリック</h4><p>スマホの画面を指で軽くたたくのが「タップ」、パソコンのマウスのボタンを押すのが「クリック」です。この説明書では「押す」と書きます。</p></div>
+    <div class="term"><h4>ログイン／ログアウト</h4><p>「ログイン」は、合言葉を入れて自分用の画面に入ること。「ログアウト」は、その画面から出ることです。</p></div>
+    <div class="term"><h4>スイッチ</h4><p>左右に動く丸いボタンです。<b>右に寄って黒くなっていれば「オン」</b>です。</p><p class="ex"><span style="display:inline-flex;gap:10px;align-items:center">オフ <span class="a-sw" style="display:inline-block"></span>　オン <span class="a-sw on" style="display:inline-block"></span></span></p></div>
+  </div>
+
+  <h3>このシステムの言葉</h3>
+  <div class="terms">
+    <div class="term"><h4>イベント</h4><p>オープンキャンパス1回分のことです。日にちごとに1つ作ります。</p><p class="ex">例：「2027年3月 オープンキャンパス」</p></div>
+    <div class="term"><h4>枠（わく）</h4><p>相談を受ける窓口のことです。学生スタッフ1人につき1つの枠、教員相談は全体で1つの枠です。</p></div>
+    <div class="term"><h4>列（れつ）</h4><p>その枠に並んでいる来場者の順番です。学生の枠ごとに1本ずつ、教員相談は全学で1本です。</p></div>
+    <div class="term"><h4>入場コード（7桁）</h4><p>来場者が使う数字です。会場のポスターに書きます。QR コードを読み取った人は入力しなくてよい仕組みです。</p><p class="ex">例：038-4712</p></div>
+    <div class="term"><h4>スタッフコード（8桁）</h4><p>学生スタッフと教員がログインに使う数字です。<b>学生は枠ごとに別の番号</b>、教員は全員共通の番号です。</p><p class="ex">例：5182-9364</p></div>
+    <div class="term"><h4>上限（じょうげん）</h4><p>1つの列に並べる組数の上限です。いっぱいになると、その列は自動で受付を止めます。</p><p class="ex">学生の枠は1〜10組（最初は5組）、教員相談は10〜80組（最初は40組）</p></div>
+    <div class="term"><h4>一時停止</h4><p>新しい整理券の受付だけを止めることです。<b>すでに並んでいる人はそのまま呼べます。</b>休憩や交代のときに使います。</p></div>
+    <div class="term"><h4>不在（ふざい）／復帰（ふっき）</h4><p>呼んでも来ない人を「不在」にします。その人が決められた時間内（最初は10分）に来れば、「復帰」で列の先頭に戻せます。</p></div>
+    <div class="term"><h4>開場／閉場</h4><p>受付を始めること／終えることです。<b>閉場すると元に戻せません。</b>残っていた整理券と相談メモは消えます。</p></div>
+    <div class="term"><h4>ブース</h4><p>相談をする机の場所です。「A-1」「F-2」のような記号で表します。来場者の呼出画面にこの記号が出ます。</p></div>
+    <div class="term"><h4>問診メモ</h4><p>来場者が整理券を取るときに書く「聞きたいこと」です（書かなくてもよい）。スタッフが事前に読めます。閉場で自動的に消えます。</p></div>
+    <div class="term"><h4>統計</h4><p>何組が来たか、平均何分待ったか、などの集計です。個人がわからない形で残ります。</p></div>
+  </div>
+</section>
+
+<!-- ===================== 第3章 ===================== -->
+<section class="ch" id="ch3">
+  <div class="ch-head"><span class="ch-no">第3章</span><h2>3つの入口（アドレス）</h2></div>
+  <p>システムには、使う人に合わせて<b>3つの入口</b>があります。アドレスの最後が違うだけです。</p>
+  <div class="doors">
+    <div class="door v"><span class="lbl">来場者の入口</span><div class="url">https://oc-ticket-2027.web.app/</div><p>ポスターの QR コードからここが開きます。ふつうは職員が開くことはありません。</p><p class="small soft">必要なもの：入場コード（7桁）</p></div>
+    <div class="door s"><span class="lbl">スタッフの入口</span><div class="url">https://oc-ticket-2027.web.app/staff</div><p>学生スタッフと教員が、自分のスマホで開きます。</p><p class="small soft">必要なもの：スタッフコード（8桁）だけ。名前やパスワードは不要</p></div>
+    <div class="door a"><span class="lbl">管理者の入口</span><div class="url">https://oc-ticket-2027.web.app/admin</div><p>職員が使います。準備も当日の見守りもここで行います。</p><p class="small soft">必要なもの：ID（メールアドレス）とパスワード</p></div>
+  </div>
+  <div class="box warn"><span class="ic">!</span><div><b>アドレスが変わることがあります</b><p>上のアドレスは2026年11月時点のものです。大学の正式なアドレスに変わった場合は、技術担当者から新しいアドレスを教えてもらい、この欄に書き直してください。</p><p>新しいアドレス：<span class="blank">&nbsp;</span></p></div></div>
+  <div class="box tip"><span class="ic">★</span><div><b>管理者の入口は「お気に入り」に登録しておくと便利です</b><p>ブラウザでアドレスを開いたら、<span class="key">Ctrl</span> ＋ <span class="key">D</span>（Mac は <span class="key">⌘</span> ＋ <span class="key">D</span>）を押すと登録できます。次からは「お気に入り」から開けます。</p></div></div>
+</section>
+
+<!-- ===================== 第4章 ===================== -->
+<section class="ch" id="ch4">
+  <div class="ch-head"><span class="ch-no">第4章</span><h2>準備から当日までの流れ</h2></div>
+  <p>オープンキャンパス1回分の、おおまかな流れです。左の時期は目安です。</p>
+  <ol class="timeline">
+    <li><span class="when">1か月前</span><span class="dot"></span><div class="what"><b>イベントを作る</b><span>名前・開場と閉場の日時・相談テーマを決めて登録します。<a href="#s-event">→ 5-3</a></span></div></li>
+    <li><span class="when">3週間前</span><span class="dot"></span><div class="what"><b>学生スタッフの枠を登録する</b><span>ニックネーム・学部学年・自己紹介・タグ・ブースの位置・似顔絵を登録します。教員相談の紹介文も直します。<a href="#s-slots">→ 5-4・5-5</a></span></div></li>
+    <li><span class="when">2週間前</span><span class="dot"></span><div class="what"><b>ポスターを作る</b><span>入場コード（7桁）と QR コードのアドレスを、ポスターの担当者に渡します。<a href="#s-codes">→ 5-6</a></span></div></li>
+    <li><span class="when">1週間前</span><span class="dot"></span><div class="what"><b>スタッフにコードと使い方を渡す</b><span>学生には「自分の枠のコード」、教員には「教員のコード」を伝え、第6章を配ります。</span></div></li>
+    <li><span class="when">前日</span><span class="dot"></span><div class="what"><b>確認する</b><span>開場・閉場の日時、学生の枠の数、コードを確かめます。<a href="#check">→ チェックリスト</a></span></div></li>
+    <li><span class="when">当日 開場前</span><span class="dot"></span><div class="what"><b>スタッフがログインする</b><span>学生・教員が自分のスマホでログインし、担当を決めます。管理画面の「当日」で、全員の担当がそろったか確かめます。</span></div></li>
+    <li><span class="when">開場時刻</span><span class="dot"></span><div class="what"><b>自動で受付が始まる</b><span>何も押さなくても始まります。早めたいときだけ <span class="btnname">いま開場する</span> を押します。</span></div></li>
+    <li><span class="when">開場中</span><span class="dot"></span><div class="what"><b>見守る</b><span>管理画面の「当日」で、列の様子と注意のお知らせを見ます。困ったら第9章へ。</span></div></li>
+    <li><span class="when">閉場時刻</span><span class="dot"></span><div class="what"><b>自動で受付が終わる</b><span>残っている整理券は無効になり、相談メモは消えます。</span></div></li>
+    <li><span class="when">閉場の1時間後</span><span class="dot"></span><div class="what"><b>データが自動で消える</b><span>統計（人数・待ち時間など）だけが残ります。「統計」のタブで見られます。<a href="#s-stats">→ 5-8</a></span></div></li>
+  </ol>
+</section>
+
+<!-- ===================== 第5章 ===================== -->
+<section class="ch" id="ch5">
+  <div class="ch-head"><span class="ch-no">第5章</span><h2>管理画面の使い方</h2><span class="who a">職員の方</span></div>
+  <p>この章は、職員の方がパソコンで行う操作です。上から順番に読めば、準備から当日まで進められます。</p>
+
+  <!-- 5-1 -->
+  <h3 id="s-login">5-1　ログインする</h3>
+  <div class="fig">
+    <div>
+      <div class="pc" data-url="oc-ticket-2027.web.app/admin" style="width:330px">
+        <span class="a-eye">管理者 · ADMIN</span>
+        <span class="a-t1">管理者ログイン</span>
+        <span style="font-weight:600;font-size:11.5px">ID（メールアドレス）</span>
+        <div class="a-in" style="position:relative">example@gmail.com<span class="pin" style="right:-12px;top:-4px">1</span></div>
+        <span style="font-weight:600;font-size:11.5px">パスワード</span>
+        <div class="a-in" style="position:relative">●●●●●●●●●●●●<span class="pin" style="right:-12px;top:-4px">2</span></div>
+        <div class="a-btn" style="position:relative">ログイン<span class="pin" style="right:-12px;top:-4px">3</span></div>
+      </div>
+      <p class="caption">ログインの画面</p>
+    </div>
+    <div class="stack">
+      <ol class="steps">
+        <li><div><b>ブラウザで管理者の入口を開きます</b><p class="url mono small">https://oc-ticket-2027.web.app/admin</p></div></li>
+        <li><div><p><span class="pinno" style="display:inline-grid;vertical-align:middle;margin:0">1</span> に <b>ID（メールアドレス）</b>、<span class="pinno" style="display:inline-grid;vertical-align:middle;margin:0">2</span> に <b>パスワード</b>を入れます。パスワードは ● で隠れて表示されます。</p></div></li>
+        <li><div><p><span class="pinno" style="display:inline-grid;vertical-align:middle;margin:0">3</span> <span class="btnname dark">ログイン</span> を押します。</p></div></li>
+      </ol>
+      <div class="box note"><span class="ic">i</span><div><b>はじめてログインしたとき</b><p>「初回設定」という画面が出ます。技術担当者から受け取った<b>仮のパスワード</b>から、<b>自分で決めたパスワード（12文字以上）</b>に変えてください。「新しいパスワード」と「もう一度」に同じものを入れ、<span class="btnname dark">パスワードを変える</span> を押します。</p></div></div>
+    </div>
+  </div>
+  <div class="box warn"><span class="ic">!</span><div><b>30分さわらないと、自動でログアウトします</b><p>安全のためです。また画面が「管理者ログイン」に戻ったら、もう一度ログインしてください。作業中の内容が消えることがあるので、入力の途中で長く席を離れないでください。</p></div></div>
+  <div class="box note"><span class="ic">i</span><div><b>「認証アプリの6桁のコード」と出たら</b><p>以前の設定が残っているアカウントです。スマホの認証アプリに出ている6桁の数字を入れます。わからなければ技術担当者に連絡してください。</p></div></div>
+
+  <!-- 5-2 -->
+  <h3>5-2　管理画面の見方</h3>
+  <p>ログインすると、次のような画面になります。上のほうで<b>どのイベントを見るか</b>を選び、その下の<b>5つのタブ</b>で、作業を切り替えます。</p>
+  <div class="pc" data-url="oc-ticket-2027.web.app/admin">
+    <div class="a-between"><span class="a-eye">管理者 · ADMIN</span><span class="a-sm">example@gmail.com　<u>ログアウト</u></span></div>
+    <div class="a-row" style="flex-wrap:wrap;position:relative">
+      <span style="font-weight:600;font-size:11.5px">イベント</span>
+      <span class="a-sel">2027年3月 オープンキャンパス（2027-03-20・開場前） ▾</span>
+      <span class="a-btn2" style="padding:4px 12px">新しいイベントを作る</span>
+      <span class="pin" style="right:-4px;top:-6px">1</span>
+    </div>
+    <div class="pc-scroll" style="position:relative">
+      <div class="a-tabs"><span class="sel">当日</span><span>イベント設定</span><span>コード</span><span>枠</span><span>統計</span></div>
+      <span class="pin" style="right:2px;top:-2px">2</span>
+    </div>
+    <div class="a-card" style="min-height:60px"><span class="a-sm">（ここに、選んだタブの内容が出ます）</span></div>
+  </div>
+  <ul class="legend">
+    <li><span class="pinno">1</span><div><b>イベントの選択</b>　▾ を押すと、これまでに作ったイベントが一覧で出ます。作業したいイベントを選びます。名前の後ろの（　）には、日付と状態（開場前・開場中・閉場・削除済み）が出ます。</div></li>
+    <li><span class="pinno">2</span><div><b>5つのタブ</b>　押すと下の内容が切り替わります。</div></li>
+  </ul>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>タブ</th><th>何をするところ</th><th>主に使う時期</th></tr></thead>
+    <tbody>
+      <tr><td>当日</td><td>受付の様子を見る・開場／閉場・一時停止・トラブル対応</td><td>当日</td></tr>
+      <tr><td>イベント設定</td><td>名前・日時・相談時間・相談テーマを決める</td><td>準備</td></tr>
+      <tr><td>コード</td><td>入場コード・スタッフコードを見る・作り直す</td><td>準備・当日</td></tr>
+      <tr><td>枠</td><td>学生スタッフの登録・教員相談の紹介文</td><td>準備</td></tr>
+      <tr><td>統計</td><td>来場の数・待ち時間などの集計を見る</td><td>終わったあと</td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- 5-3 -->
+  <h3 id="s-event">5-3　イベントを作る</h3>
+  <ol class="steps">
+    <li><div><p>画面上の <span class="btnname">新しいイベントを作る</span> を押します。</p></div></li>
+    <li><div><p>次の表のとおりに入力します。</p></div></li>
+    <li><div><p>いちばん下の <span class="btnname dark">作成する</span> を押します。</p><p>作ると、<b>入場コード・スタッフコード・教員相談の枠</b>が自動でできあがります。学生の枠は、次の 5-4 で登録します。</p></div></li>
+  </ol>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>入力する欄</th><th>書くこと</th><th>記入例</th></tr></thead>
+    <tbody>
+      <tr><td>名前</td><td>管理画面で見分けるための名前（60文字まで）。来場者には見えません。</td><td>2027年3月 オープンキャンパス</td></tr>
+      <tr><td>開場（JST）</td><td>受付を始める日時。この時刻になると自動で始まります。JST は日本時間のことです。</td><td>2027/03/20 10:00</td></tr>
+      <tr><td>閉場（JST）</td><td>受付を終える日時。この時刻になると自動で終わります。</td><td>2027/03/20 15:30</td></tr>
+      <tr><td>1組の相談時間（分）</td><td>1組あたりの相談のおおよその時間。待ち時間の目安を出すのに使います（1〜60分）。</td><td>10</td></tr>
+      <tr><td>不在から復帰できる時間（分）</td><td>呼んでも来なかった人が、何分以内なら列に戻れるか（1〜60分）。</td><td>10</td></tr>
+      <tr><td>相談テーマ</td><td>来場者が選べる「聞きたいテーマ」。<b>1行に1つ</b>書きます（20個まで、1つ20文字まで）。最初から6つ入っています。</td><td>入試・選抜方法<br>学部・学科の学び<br>学生生活<br>就職・資格<br>費用・奨学金<br>その他</td></tr>
+    </tbody>
+  </table></div>
+  <div class="box warn"><span class="ic">!</span><div><b>日時の入力で気をつけること</b><p>開場から閉場までは<b>24時間以内</b>にしてください。閉場は<b>今より後</b>の日時にしてください。年や日付を打ち間違えると「作成する」が押せないか、エラーが出ます。そのときは年・月・日をもう一度見直してください。</p></div></div>
+  <div class="box tip"><span class="ic">★</span><div><b>あとから直すとき</b><p>「イベント設定」のタブで同じ欄を直し、<span class="btnname dark">保存する</span> を押します。閉場したあとは直せません。</p></div></div>
+
+  <!-- 5-4 -->
+  <h3 id="s-slots">5-4　学生スタッフの枠を登録する</h3>
+  <p>「枠」のタブを開きます。学生スタッフ1人につき1つの枠を作ります。<b>1人ずつ登録する方法</b>と、<b>表計算ソフト（Excel）でまとめて登録する方法</b>があります。人数が少なければ、1人ずつで十分です。</p>
+
+  <h4>方法A　1人ずつ登録する</h4>
+  <div class="fig">
+    <div>
+      <div class="phone" style="width:300px">
+        <span class="a-t2">学生相談の枠を足す</span>
+        <span class="a-sm">実名・URL・SNS の ID は登録できません。</span>
+        <div class="a-row"><div style="flex:1"><span class="a-sm">ニックネーム</span><div class="a-in" style="position:relative">ゆい<span class="pin" style="left:-12px;top:-4px">1</span></div></div><div style="width:64px"><span class="a-sm">位置</span><div class="a-in" style="position:relative">A-1<span class="pin" style="right:-10px;top:-14px">2</span></div></div><div style="width:50px"><span class="a-sm">並び順</span><div class="a-in">0</div></div></div>
+        <span class="a-sm">学部・学科・学年</span><div class="a-in" style="position:relative">国際学部 4年<span class="pin" style="left:-12px;top:-4px">3</span></div>
+        <span class="a-sm">自己紹介（200字まで）</span><div class="a-in" style="height:44px;position:relative">カナダに留学しました。留学の準備や奨学金のことなら何でも聞いてください。<span class="pin" style="left:-12px;top:-4px">4</span></div>
+        <span class="a-sm">タグ（空白か読点で区切る。5個まで。# は不要）</span><div class="a-in" style="position:relative">留学 総合型選抜<span class="pin" style="left:-12px;top:-4px">5</span></div>
+        <div class="a-btn">保存する</div>
+        <div class="a-btn2">やめる</div>
+      </div>
+      <p class="caption">「枠を足す」を押すと出る入力画面</p>
+    </div>
+    <div class="stack">
+      <ol class="steps">
+        <li><div><p>「学生相談の枠」の右にある <span class="btnname">枠を足す</span> を押します。</p></div></li>
+        <li><div><p>左の絵の欄を埋めます。</p>
+          <ul class="legend">
+            <li><span class="pinno">1</span><div><b>ニックネーム</b>　来場者に見える名前。<b>本名は書きません。</b>（20文字まで）</div></li>
+            <li><span class="pinno">2</span><div><b>位置</b>　その学生が座るブースの記号。来場者の呼出画面に大きく出ます。</div></li>
+            <li><span class="pinno">3</span><div><b>学部・学科・学年</b>　（40文字まで）</div></li>
+            <li><span class="pinno">4</span><div><b>自己紹介</b>　来場者が読む紹介文（200字まで）。</div></li>
+            <li><span class="pinno">5</span><div><b>タグ</b>　得意なテーマ。来場者はタグで相談員を絞り込めます。空白で区切ります。「#」はいりません。</div></li>
+          </ul>
+          <p class="small soft">「並び順」は、一覧に出る順番です。小さい数字ほど上に出ます。ふつうはそのままで大丈夫です。</p>
+        </div></li>
+        <li><div><p><span class="btnname dark">保存する</span> を押します。一覧に1行増えます。</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <h4>似顔絵（画像）を登録する</h4>
+  <p>一覧のいちばん左にある<b>丸（画像の場所）を押す</b>と、パソコンの中のファイルを選ぶ画面が開きます。画像を選ぶと自動で小さくして登録されます（JPEG・PNG・WebP の画像が使えます）。</p>
+  <div class="box warn"><span class="ic">!</span><div><b>本人とわかる写真は避けてください</b><p>イラストや似顔絵を使うのが基本です。写真を使う場合も、背景が無地の小さな写真にしてください。</p></div></div>
+
+  <h4>直す・消す</h4>
+  <p>一覧の右側の <span class="btnname">直す</span> で内容を直せます。<u>消す</u> で枠を消せます。ただし、<b>並んでいる人がいる枠や、担当の学生がログインしている枠は消せません。</b></p>
+
+  <h4>方法B　Excel でまとめて登録する（人数が多いとき）</h4>
+  <ol class="steps">
+    <li><div><p>Excel で、次のような表を作ります。<b>1行目の見出しは、この英語のとおりに</b>書いてください。</p>
+      <div class="tbl-wrap"><table class="t" style="font-size:15px">
+        <thead><tr><th>id</th><th>nickname</th><th>department</th><th>bio</th><th>tags</th><th>location</th><th>order</th></tr></thead>
+        <tbody>
+          <tr><td class="soft">（空）</td><td>ゆい</td><td>国際学部 4年</td><td>カナダに留学しました。</td><td>留学 総合型選抜</td><td>A-1</td><td>0</td></tr>
+          <tr><td class="soft">（空）</td><td>ひなた</td><td>心理学部 2年</td><td>一人暮らしの話もできます。</td><td>一人暮らし サークル</td><td>A-2</td><td>1</td></tr>
+        </tbody>
+      </table></div>
+      <p class="small">見出しの意味：id＝（新しく作るときは空のまま）、nickname＝ニックネーム、department＝学部・学科・学年、bio＝自己紹介、tags＝タグ、location＝位置、order＝並び順</p>
+    </div></li>
+    <li><div><p>Excel の「ファイル」→「名前を付けて保存」で、ファイルの種類を <b>「CSV UTF-8（コンマ区切り）」</b> にして保存します。</p></div></li>
+    <li><div><p>「枠」のタブの「CSV でまとめて取り込む」で <span class="btnname">ファイルを選ぶ</span> を押し、保存したファイルを選びます。</p></div></li>
+    <li><div><p>下の大きな欄に中身が出たら、<span class="btnname dark">取り込む</span> を押します。「○件を取り込みました。」と出れば完了です。</p></div></li>
+  </ol>
+  <div class="box note"><span class="ic">i</span><div><b>エラーが出たら</b><p>「3行目（nickname）: …」のように、<b>何行目のどの欄がおかしいか</b>が表示されます。1行でも誤りがあると、<b>1件も取り込まれません</b>。直してから、もう一度取り込んでください。1回に取り込めるのは50行までです。</p><p>すでに登録した枠をまとめて直したいときは、<span class="btnname">今の枠を書き出す</span> を押すと、今の内容（id 付き）が欄に出ます。それをコピーして Excel で直し、取り込み直すと上書きされます。</p></div></div>
+
+  <!-- 5-5 -->
+  <h3>5-5　教員相談の紹介文を直す</h3>
+  <p>「枠」のタブのいちばん下に「教員相談の紹介」があります。来場者が「教員相談」を選んだときに見る文章です。</p>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>欄</th><th>書くこと</th></tr></thead>
+    <tbody>
+      <tr><td>表示名</td><td>来場者に見える名前（40文字まで）。例：教員による個別相談</td></tr>
+      <tr><td>相談できる分野</td><td>1行に1つ、10個まで。例：カリキュラム／入試の基準／卒業後の進路</td></tr>
+      <tr><td>説明</td><td>紹介の文章（400字まで）</td></tr>
+    </tbody>
+  </table></div>
+  <p>書き終わったら <span class="btnname dark">保存する</span> を押します。教員相談は、教員一人ひとりの名前や紹介は出ません。</p>
+
+  <!-- 5-6 -->
+  <h3 id="s-codes">5-6　コードを見る・配る・作り直す</h3>
+  <div class="fig rev">
+    <div class="stack">
+      <ol class="steps">
+        <li><div><p>「コード」のタブを開き、<span class="btnname dark">コードを表示する</span> を押します。</p></div></li>
+        <li><div><p>右の絵のように、3種類のコードが出ます。</p>
+          <ul class="legend">
+            <li><span class="pinno">1</span><div><b>入場コード（7桁）</b>　来場者用。<b>ポスターに印刷</b>します。</div></li>
+            <li><span class="pinno">2</span><div><b>教員のスタッフコード（8桁）</b>　教員全員に同じ番号を伝えます。</div></li>
+            <li><span class="pinno">3</span><div><b>学生枠のスタッフコード（8桁）</b>　<b>枠ごとに違います。</b>学生には<b>自分の枠の番号だけ</b>を伝えます。</div></li>
+            <li><span class="pinno">4</span><div><b>ポスターの QR に入れるアドレス</b>　<span class="btnname">コピー</span> を押すとコピーされます。メールなどに貼り付けて、ポスターの担当者に渡します。QR コードはこのアドレスから作ります。</div></li>
+          </ul>
+        </div></li>
+        <li><div><p>終わったら <u>コードを隠す</u> を押します。</p></div></li>
+      </ol>
+    </div>
+    <div>
+      <div class="phone" style="width:270px">
+        <span class="a-t2">コード</span>
+        <div class="a-panel">
+          <div style="position:relative"><span>入場コード（7桁・来場者）<br><b style="font-size:20px;letter-spacing:.08em">038-4712</b></span><span class="a-btn2" style="padding:3px 8px">作り直す</span><span class="pin" style="left:-22px;top:10px">1</span></div>
+          <div style="position:relative"><span>教員のスタッフコード<br><b style="font-size:20px;letter-spacing:.08em">0384-7125</b></span><span class="a-btn2" style="padding:3px 8px">作り直す</span><span class="pin" style="left:-22px;top:10px">2</span></div>
+        </div>
+        <span style="font-weight:600;font-size:11.5px;position:relative">学生枠のスタッフコード（枠ごと）<span class="pin" style="left:-34px;top:-2px">3</span></span>
+        <div class="a-panel">
+          <div><span>A-1 ゆい<br><b style="font-size:17px;letter-spacing:.08em">5182-9364</b></span><span class="a-btn2" style="padding:3px 8px">作り直す</span></div>
+          <div><span>A-2 ひなた<br><b style="font-size:17px;letter-spacing:.08em">6293-0475</b></span><span class="a-btn2" style="padding:3px 8px">作り直す</span></div>
+        </div>
+        <span style="font-weight:600;font-size:11.5px;position:relative">ポスターの QR に入れる URL<span class="pin" style="left:-34px;top:-2px">4</span></span>
+        <div class="a-row"><span class="a-memo" style="flex:1;overflow-wrap:anywhere">https://oc-ticket-2027.web.app/#code=0384712</span><span class="a-btn2" style="padding:3px 8px">コピー</span></div>
+      </div>
+      <p class="caption">数字はすべて例です</p>
+    </div>
+  </div>
+  <div class="box warn"><span class="ic">!</span><div><b>コードは人に見られない場所で開いてください</b><p>コードを表示すると、「だれがいつ表示したか」が記録に残ります。スタッフコードを知っていると、だれでもスタッフの画面に入れてしまいます。学生への連絡は、本人だけに届く方法（個別のメールなど）で行ってください。</p></div></div>
+  <h4>コードを作り直す（もしもの時）</h4>
+  <p>コードが外に広まってしまったときは、そのコードの横の <span class="btnname">作り直す</span> を押すと、新しい番号に変わります。</p>
+  <div class="two">
+    <div class="box danger"><span class="ic">!</span><div><b>入場コードを作り直すと</b><p>ポスターの QR コードと7桁の番号が<b>使えなくなります</b>。新しい番号の貼り替えシールを用意してから行ってください。すでに入場している来場者は、そのまま使えます。</p></div></div>
+    <div class="box warn"><span class="ic">!</span><div><b>スタッフコードを作り直すと</b><p>これからログインする人には新しい番号を伝えてください。すでにログインしているスマホは、そのまま使えます。</p></div></div>
+  </div>
+
+  <!-- 5-7 -->
+  <h3 id="s-today">5-7　当日の操作</h3>
+  <p>当日は「当日」のタブを開いたままにしておきます。画面は自動で新しい状態に変わるので、押し直す必要はありません。</p>
+  <div class="pc" data-url="oc-ticket-2027.web.app/admin">
+    <div class="a-card" style="position:relative">
+      <div class="a-between" style="flex-wrap:wrap"><span class="a-t2">2027年3月 オープンキャンパス <span class="a-chip acc">開場中</span></span><span class="a-sm">開場 2027-03-20 10:00 ／ 閉場 2027-03-20 15:30</span></div>
+      <div class="a-row" style="flex-wrap:wrap"><span class="a-btn2" style="padding:4px 14px;color:#a8322a;border-color:#a8322a">いま閉場する</span></div>
+      <div class="a-panel"><div><span>会場全体の受付を一時停止する<br><span class="a-sm">並んでいる方はそのまま呼べます。</span></span><span class="a-sw"></span></div></div>
+      <span class="pin" style="left:-14px;top:-8px">1</span>
+    </div>
+    <div class="a-card" style="position:relative">
+      <span class="a-t2">いまの様子</span>
+      <div class="a-row" style="flex-wrap:wrap;gap:14px"><span>待ち <b>18組</b></span><span>呼出・相談中 <b>6組</b></span><span>直近10分の発券 <b>9件</b></span><span>入場コードの失敗 <b>0件</b></span><span>スタッフコードの失敗 <b>0件</b></span></div>
+      <span class="pin" style="left:-14px;top:-8px">2</span>
+    </div>
+    <div class="a-card" style="position:relative">
+      <span class="a-t2">列ごとの状態</span>
+      <div class="pc-scroll">
+      <table class="a-table">
+        <thead><tr><th>枠</th><th>状態</th><th>待ち / 上限</th><th>対応中</th><th>担当</th><th>受付停止</th></tr></thead>
+        <tbody>
+          <tr><td><b>A-1 ゆい</b></td><td><span class="a-chip acc">受付中</span></td><td><span class="a-row" style="gap:4px"><span class="a-pm">−</span> 3 / 5 <span class="a-pm">＋</span></span></td><td>No.112</td><td><span class="a-sm">最終確認 11:42</span> <u>強制解除</u></td><td><span class="a-sw"></span></td></tr>
+          <tr><td><b>A-2 ひなた</b></td><td><span class="a-chip ps">一時停止中</span><div class="a-sm">上限到達</div></td><td><span class="a-row" style="gap:4px"><span class="a-pm">−</span> 5 / 5 <span class="a-pm">＋</span></span></td><td>No.108</td><td><span class="a-sm" style="color:#8a5a00">最終確認 11:35</span> <u>強制解除</u></td><td><span class="a-sw"></span></td></tr>
+          <tr><td><b>教員相談</b></td><td><span class="a-chip ok">すぐ案内可</span></td><td><span class="a-row" style="gap:4px"><span class="a-pm">−</span> 0 / 40 <span class="a-pm">＋</span></span></td><td>No.110</td><td><span class="a-sm">ブース F-1 最終確認 11:43</span> <u>強制解除</u></td><td><span class="a-sw"></span></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <span class="pin" style="left:-14px;top:-8px">3</span>
+    </div>
+  </div>
+  <ul class="legend">
+    <li><span class="pinno">1</span><div><b>開場・閉場・全体の一時停止</b>　開場前は <span class="btnname">いま開場する</span>、開場中は <span class="btnname">いま閉場する</span> が出ます。ふつうは時刻どおり自動で動くので、<b>押す必要はありません</b>。「会場全体の受付を一時停止する」のスイッチをオンにすると、すべての列で新しい整理券を止めます（並んでいる人は呼べます）。</div></li>
+    <li><span class="pinno">2</span><div><b>いまの様子</b>　待っている組数や、この10分で何枚の整理券が出たかがわかります。おかしな様子があると、黄色いお知らせが出ます（第9章）。</div></li>
+    <li><span class="pinno">3</span><div><b>列ごとの状態</b>　学生の枠ごと・教員相談の様子です。<span class="a-pm" style="display:inline-grid;width:22px;height:22px">−</span> <span class="a-pm" style="display:inline-grid;width:22px;height:22px">＋</span> で上限の組数を変えられます。右端のスイッチで、その列だけ受付を止められます。<b>「最終確認」の時刻が3分以上前で、茶色の文字になっている担当</b>は、スマホの画面が閉じているかもしれません。</div></li>
+  </ul>
+
+  <h4>状態の表示の意味</h4>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>表示</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td><span class="a-chip ok" style="font-size:14px">すぐ案内可</span></td><td>待っている人がおらず、すぐ相談できる</td></tr>
+      <tr><td><span class="a-chip acc" style="font-size:14px">受付中</span></td><td>待っている人がいるが、まだ並べる</td></tr>
+      <tr><td><span class="a-chip ps" style="font-size:14px">一時停止中</span></td><td>新しい受付を止めている。理由が下に小さく出る（全体停止／上限到達／担当の停止）</td></tr>
+      <tr><td><span class="a-chip pill" style="font-size:14px">準備中</span></td><td>担当のスタッフがまだログインしていない（教員相談はブースにだれもいない）</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4>強制解除（スタッフのスマホが使えなくなったとき）</h4>
+  <p>学生のスマホの電池が切れた、壊れた、などで操作できなくなったときに使います。その枠の「担当」の欄の <u>強制解除</u> を押し、確認の画面で <span class="btnname dark">担当を外す</span> を押します。</p>
+  <p>そのあと、学生に<b>別のスマホで同じスタッフコードを入れてもらえば</b>、続きから操作できます。対応中だった来場者もそのまま引き継がれます。</p>
+
+  <div class="box danger"><span class="ic">!</span><div><b>「いま閉場する」は元に戻せません</b><p>押すと、残っている整理券はすべて使えなくなり、相談メモも消えます。確認の画面が出るので、本当に終わらせるときだけ <span class="btnname">閉場する</span> を押してください。迷ったら、まず「会場全体の受付を一時停止する」を使ってください。</p></div></div>
+
+  <!-- 5-8 -->
+  <h3 id="s-stats">5-8　統計を見る</h3>
+  <p>「統計」のタブで、次のことがわかります。開場中は「いまの整理券からの試算」、閉場の1時間後からは「保存済み」の数字が出ます。報告書などに使ってください。</p>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>項目</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td>発券</td><td>出た整理券の数</td></tr>
+      <tr><td>完了</td><td>相談が終わった数</td></tr>
+      <tr><td>キャンセル</td><td>来場者が自分で取り消した数</td></tr>
+      <tr><td>無効</td><td>不在のまま時間が過ぎた、または閉場で使えなくなった数</td></tr>
+      <tr><td>平均の待ち・平均の相談</td><td>1組あたりの平均の分数</td></tr>
+      <tr><td>学年 × テーマ</td><td>どの学年の人が、どのテーマを聞きたかったかの表</td></tr>
+      <tr><td>時間帯別の発券数</td><td>何時台に何枚出たかの棒グラフ。混む時間がわかります</td></tr>
+    </tbody>
+  </table></div>
+  <div class="box tip"><span class="ic">★</span><div><b>数字を残しておきたいとき</b><p>画面をそのまま印刷するか、画面の写真（スクリーンショット）を撮って保存してください。Windows は <span class="key">Windows</span> ＋ <span class="key">Shift</span> ＋ <span class="key">S</span>、Mac は <span class="key">⌘</span> ＋ <span class="key">Shift</span> ＋ <span class="key">4</span> で撮れます。</p></div></div>
+</section>
+
+<!-- ===================== 第6章 ===================== -->
+<section class="ch" id="ch6">
+  <div class="ch-head"><span class="ch-no">第6章</span><h2>スタッフ画面の使い方</h2><span class="who s">学生スタッフ・教員</span></div>
+  <p>学生スタッフと教員が、当日に自分のスマホで使う画面です。職員の方も、質問に答えられるよう一度目を通してください。</p>
+
+  <div class="cut">
+    <h3 style="margin:0">相談スタッフ用　かんたん手順</h3>
+    <div class="box note"><span class="ic">i</span><div><b>用意するもの</b><p>① 充電した自分のスマホ　② 自分のスタッフコード（8桁。職員から受け取ります）</p><p>入口：<b class="mono">https://oc-ticket-2027.web.app/staff</b></p></div></div>
+
+    <h4>はじめに：ログインと担当の設定</h4>
+    <div class="phones">
+      <div>
+        <div class="phone">
+          <span class="a-eye">スタッフ · STAFF</span>
+          <span class="a-t1">ログイン</span>
+          <span style="font-weight:600;font-size:11.5px">スタッフコード（8桁）</span>
+          <span class="a-sm">学生スタッフは自分の枠のコード、教員スタッフは教員用のコードを入れてください。</span>
+          <div class="a-code" style="position:relative">5182-9364<span class="pin" style="right:-12px;top:-10px">1</span></div>
+          <div class="a-btn" style="position:relative">ログインする<span class="pin" style="right:-12px;top:-10px">2</span></div>
+        </div>
+        <p class="caption">① コードを入れて ② 押す</p>
+      </div>
+      <div>
+        <div class="phone">
+          <span class="a-eye">スタッフ · STAFF</span>
+          <span class="a-t1">担当の枠</span>
+          <span class="a-sm">このスタッフコードで担当できる枠です。1つの枠は1台の端末だけが担当できます。</span>
+          <div class="a-card"><span class="a-eye">学生相談 A-1</span><span class="a-t2">ゆい · 国際学部 4年</span><div class="a-btn" style="position:relative">この枠を担当して受付を始める<span class="pin" style="right:-12px;top:-10px">3</span></div></div>
+        </div>
+        <p class="caption">学生：③ を押す</p>
+      </div>
+      <div>
+        <div class="phone">
+          <span class="a-eye">スタッフ · STAFF</span>
+          <span class="a-t1">座っているブース</span>
+          <span class="a-sm">教員相談は全学で一つの列です。ブースを設定すると、そのブースに次の方をお呼びできます。</span>
+          <span style="font-weight:600;font-size:11.5px">ブース番号（例: F-2）</span>
+          <div class="a-in" style="position:relative;color:#232121">F-2<span class="pin" style="right:-12px;top:-10px">3</span></div>
+          <div class="a-btn">このブースで始める</div>
+        </div>
+        <p class="caption">教員：③ ブースを入れて押す</p>
+      </div>
+    </div>
+
+    <h4>相談の流れ（くり返し）</h4>
+    <p>画面のいちばん下に、<b>いま押すべきボタンが1つだけ大きく</b>出ます。それを順に押していけば大丈夫です。</p>
+    <div class="phones">
+      <div>
+        <div class="phone">
+          <span class="a-sm">担当</span><span class="a-t2" style="margin-top:-8px">学生相談 A-1 · ゆい</span>
+          <div class="a-panel"><div><span>列の上限</span><span class="a-row"><span class="a-pm">−</span><b style="font-size:16px">5</b> 組<span class="a-pm">＋</span></span></div><div><span>新しい受付を一時停止する</span><span class="a-sw"></span></div></div>
+          <div class="a-between"><span class="a-t2">お待ちの方</span><span class="a-sm">2組 / 上限 5組</span></div>
+          <div class="a-qrow" style="position:relative"><b>No.104 · 高校3年</b><span class="a-sm">#入試・選抜方法 · 待ち 8分 · メモあり</span><span class="pin" style="right:-12px;top:-8px">A</span></div>
+          <div class="a-qrow"><b>No.107 · 保護者</b><span class="a-sm">#費用・奨学金 · 待ち 3分</span></div>
+          <div class="a-bar"><span class="a-sm">お待ちの方 2組</span><div class="a-btn" style="position:relative">🔔 次の方を呼ぶ<span class="pin" style="right:-10px;top:-10px">1</span></div></div>
+        </div>
+        <p class="caption">① 次の方を呼ぶ</p>
+      </div>
+      <div>
+        <div class="phone">
+          <span class="a-t2">対応中</span>
+          <div class="a-qrow cur"><span class="a-between"><b>No.104 · 高校3年</b><span class="a-chip ok">向かっています</span></span><span class="a-sm">#入試・選抜方法</span><span class="a-memo">総合型選抜の面接では何を聞かれますか。</span></div>
+          <div style="flex:1"></div>
+          <div class="a-bar"><div class="a-between" style="font-size:11.5px"><span>No.104 をお呼び出し中（向かっています）</span><b>1:20</b></div><span class="a-sm">3分を過ぎたら、口頭でもお呼びください。</span><div class="a-row"><div class="a-btn2" style="flex:0 0 64px;position:relative">不在<span class="pin" style="left:-10px;top:-12px">B</span></div><div class="a-btn" style="flex:1;position:relative">相談を始める<span class="pin" style="right:-10px;top:-12px">2</span></div></div></div>
+        </div>
+        <p class="caption">② 来たら 相談を始める</p>
+      </div>
+      <div>
+        <div class="phone">
+          <span class="a-t2">対応中</span>
+          <div class="a-qrow cur"><b>No.104 · 高校3年</b><span class="a-sm">#入試・選抜方法</span><span class="a-memo">総合型選抜の面接では何を聞かれますか。</span></div>
+          <div style="flex:1"></div>
+          <div class="a-bar"><div class="a-between" style="font-size:11.5px"><span>No.104 とご相談中</span><b>8:45</b></div><div class="a-btn" style="position:relative">✓ 相談を終える<span class="pin" style="right:-10px;top:-10px">3</span></div></div>
+        </div>
+        <p class="caption">③ 終わったら 相談を終える</p>
+      </div>
+    </div>
+    <ol class="steps">
+      <li><div><p><span class="btnname dark">次の方を呼ぶ</span> を押すと、列の先頭の方のスマホに「お呼び出しです」と大きく出ます。来場者が「いま向かいます」を押すと、あなたの画面に <span class="a-chip ok" style="font-size:13px">向かっています</span> と出ます。</p></div></li>
+      <li><div><p>来場者が来たら、整理券の番号を見せてもらって確かめ、<span class="btnname dark">相談を始める</span> を押します。相談の時間が数えられます（15分を過ぎると文字の色が変わります）。</p></div></li>
+      <li><div><p>相談が終わったら <span class="btnname dark">相談を終える</span> を押します。①に戻って、次の方を呼びます。</p></div></li>
+    </ol>
+    <ul class="legend">
+      <li><span class="pinno">A</span><div><b>問診メモを読む</b>　「お待ちの方」の行を押すと、その方の「聞きたいこと」が開きます。相談の前に読んで、資料を準備できます。</div></li>
+      <li><span class="pinno">B</span><div><b>呼んでも来ないとき</b>　3分たっても来なければ、まず声に出して番号を呼んでください。それでも来なければ <span class="btnname">不在</span> を押します。その方は「不在」の行に移り、決められた時間（ふつう10分）のうちに来れば、<span class="btnname">復帰</span> を押して列の先頭に戻せます。</div></li>
+    </ul>
+
+    <div class="fig">
+      <div class="phone" style="width:250px">
+        <div style="flex:1;min-height:40px"></div>
+        <div class="a-bar"><div class="a-undo">No.104 の相談を終えます（3秒）<b>↺ 取り消す</b><i></i></div></div>
+      </div>
+      <div class="box tip"><span class="ic">★</span><div><b>まちがえて押したときは「取り消す」</b><p>「相談を終える」と「不在」は、押してから<b>5秒間だけ取り消せます</b>。画面の下に黒い帯が出ている間に <span class="btnname">取り消す</span> を押せば、元に戻ります。</p></div></div>
+    </div>
+
+    <h4>休憩・交代するとき</h4>
+    <div class="two">
+      <div class="box note"><span class="ic">i</span><div><b>新しい受付を止める</b><p>画面上の「新しい受付を一時停止する」のスイッチをオンにします。<b>並んでいる方はそのまま呼べます。</b>全員の相談を終えてから休憩に入れます。戻ったらスイッチをオフにします。</p></div></div>
+      <div class="box note"><span class="ic">i</span><div><b>列の上限を変える</b><p>「列の上限」の <b>－</b> <b>＋</b> で、並べる組数を変えられます。いっぱいになると自動で受付が止まり、減ればまた始まります。</p></div></div>
+      <div class="box note"><span class="ic">i</span><div><b>担当を交代する</b><p>対応中の方がいないときに、画面下の <u>担当を外れる（列は残ります）</u> を押します。交代の人が自分のスマホで<b>同じスタッフコード</b>を入れてログインします。</p></div></div>
+      <div class="box warn"><span class="ic">!</span><div><b>1つの枠は1台のスマホだけ</b><p>ほかのスマホが担当中だと「ほかの端末が担当中」と出て始められません。前のスマホで「担当を外れる」を押すか、職員に「強制解除」を頼んでください。</p></div></div>
+    </div>
+    <div class="box warn"><span class="ic">!</span><div><b>コードを何度もまちがえると</b><p>「しばらく時間をおいてから、もう一度お試しください（あと ○分）」と出て、入力できなくなります。表示の時間が過ぎるのを待ってから、正しいコードを入れてください。</p></div></div>
+    <p class="small soft">困ったときの連絡先（職員）：<span class="blank">&nbsp;</span></p>
+  </div>
+</section>
+
+<!-- ===================== 第7章 ===================== -->
+<section class="ch" id="ch7">
+  <div class="ch-head"><span class="ch-no">第7章</span><h2>来場者の画面</h2><span class="who v">案内のために</span></div>
+  <p>来場者から「どうやるの？」と聞かれたときに案内できるよう、来場者が見る画面を順番に紹介します。</p>
+  <div class="phones">
+    <div>
+      <div class="phone">
+        <span class="a-eye">明治学院大学</span>
+        <span class="a-t1">個別相談</span>
+        <span class="a-sm">整理券を受け取って、順番をお待ちいただけます。</span>
+        <div class="a-code">038-4712</div>
+        <span class="a-sm">会場のポスターにある7桁をご入力ください。QRコードを読み取った方は入力不要です。</span>
+        <div class="a-btn">入場する</div>
+      </div>
+      <p class="caption"><b>1. 入場</b>　QR を読めば自動で通過</p>
+    </div>
+    <div>
+      <div class="phone">
+        <span class="a-t1">相談を<span style="background:linear-gradient(transparent 55%,#e6e67a 55%)">えらぶ</span></span>
+        <div class="a-seg"><span class="sel">学生相談<br>4名が受付中</span><span>教員相談<br>待ち 6組</span></div>
+        <div class="a-row" style="flex-wrap:wrap;gap:4px"><span class="a-chip on">すべて</span><span class="a-chip pill">#留学</span><span class="a-chip pill">#一人暮らし</span></div>
+        <div class="a-card"><div class="a-row"><span class="a-av">ゆ</span><div style="flex:1"><div class="a-between"><span class="a-eye">学生相談 A-1</span><span class="a-chip acc">受付中</span></div><b>ゆい · 国際学部 4年</b><div class="a-sm">あと 2組 · およそ 15分</div></div></div></div>
+        <div class="a-card"><div class="a-row"><span class="a-av">ひ</span><div style="flex:1"><div class="a-between"><span class="a-eye">学生相談 A-2</span><span class="a-chip ok">すぐ案内可</span></div><b>ひなた · 心理学部 2年</b><div class="a-sm">待ちなし · まもなく</div></div></div></div>
+      </div>
+      <p class="caption"><b>2. えらぶ</b>　学生か教員かを選ぶ</p>
+    </div>
+    <div>
+      <div class="phone">
+        <div style="flex:1;min-height:30px;background:rgba(36,33,28,.18);margin:-26px -14px 0;border-radius:25px 25px 0 0"></div>
+        <div class="a-sheet">
+          <div class="a-grip"></div>
+          <b>ゆい · 国際学部 4年</b>
+          <span class="a-sm">学年（任意）</span>
+          <div class="a-row" style="flex-wrap:wrap;gap:4px"><span class="a-chip on">高校3年</span><span class="a-chip pill">高校2年</span><span class="a-chip pill">保護者</span></div>
+          <span class="a-sm">聞きたいテーマ（5つまで）</span>
+          <div class="a-row" style="flex-wrap:wrap;gap:4px"><span class="a-chip on">入試・選抜方法</span><span class="a-chip pill">学生生活</span></div>
+          <span class="a-sm">聞きたいこと（任意・200字まで）</span>
+          <div class="a-in" style="font-size:11px">留学の準備はいつから？</div>
+          <div class="a-btn">整理券を受け取る</div>
+        </div>
+      </div>
+      <p class="caption"><b>3. 問診</b>　答えなくても受け取れる</p>
+    </div>
+    <div>
+      <div class="phone">
+        <span class="a-eye">整理券</span>
+        <div class="a-ticket">
+          <div class="span2"><span class="a-sm">整理券番号</span><div class="a-big">No.104</div></div>
+          <div class="span2"><span class="a-sm">ご案内先</span><div><b>学生相談 A-1 · ゆい</b></div></div>
+          <div><span class="a-sm">前にお待ちの方</span><div><b style="font-size:20px">2</b> 組</div></div>
+          <div><span class="a-sm">目安の待ち時間</span><div><b style="font-size:20px">15</b> 分</div></div>
+        </div>
+        <div class="a-note">画面を閉じたりロックしたりすると、お呼び出しが届きません。この画面を開いたままお待ちください。</div>
+        <div class="a-panel"><div><span>画面を消さない</span><span class="a-sw on"></span></div><div><span>音で知らせる</span><span class="a-sw"></span></div></div>
+        <div class="a-quiet">この整理券をキャンセルする</div>
+      </div>
+      <p class="caption"><b>4. 待つ</b>　ほかの企画を見てよい</p>
+    </div>
+    <div>
+      <div class="phone call">
+        <span class="a-eye">🔔 お呼び出し · NOW CALLING</span>
+        <span style="font-size:22px;font-weight:600">お呼び出しです</span>
+        <b>整理券 No.104 の方</b>
+        <div class="a-callwin"><span style="font-size:9.5px;letter-spacing:.14em">学生相談 · BOOTH</span><b>A-1</b><span style="font-size:11px">相談員 ゆい</span></div>
+        <span>学生相談 A-1 へお越しください。</span>
+        <div style="flex:1"></div>
+        <div class="a-btn-on-ink">いま向かいます</div>
+        <span class="a-sm">間に合わなかった場合も、10分以内にお越しいただければ先頭でご案内します。</span>
+      </div>
+      <p class="caption"><b>5. 呼出</b>　画面いっぱいに出る</p>
+    </div>
+  </div>
+
+  <h3>来場者によく聞かれること</h3>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>聞かれたこと</th><th>答え方の例</th></tr></thead>
+    <tbody>
+      <tr><td>QR を読んでも数字を入れろと出る</td><td>「ポスターに書いてある7桁の数字を入れてください」</td></tr>
+      <tr><td>もう1枚取りたい</td><td>「整理券はお一人1枚までです。いまの整理券をキャンセルすると、ほかの相談を選べます」</td></tr>
+      <tr><td>呼ばれたか心配</td><td>「画面を開いたままにしておけば、順番が来ると画面いっぱいに出ます。スマホをロックすると届きません」</td></tr>
+      <tr><td>呼ばれたのに間に合わなかった</td><td>「呼ばれてから10分以内なら、ブースのスタッフに声をかければ先頭に戻してもらえます」（時間は設定によります）</td></tr>
+      <tr><td>名前や学校名を書くの？</td><td>「書かなくて大丈夫です。番号だけで区別しています」</td></tr>
+      <tr><td>画面がずっと「まもなく受付を始めます」</td><td>開場時刻の前です。開場時刻になれば自動で始まります。</td></tr>
+    </tbody>
+  </table></div>
+  <div class="say-wrap">
+    <svg viewBox="0 0 60 80" aria-hidden="true"><use href="#person" style="color:var(--admin)"/></svg>
+    <p class="say">案内のコツ：<b>「スマホの画面は消さずに、開いたままでお待ちください」</b>のひとことが、いちばん大切です。</p>
+  </div>
+</section>
+
+<!-- ===================== 第8章 ===================== -->
+<section class="ch" id="ch8">
+  <div class="ch-head"><span class="ch-no">第8章</span><h2>整理券の一生</h2></div>
+  <p>1枚の整理券が、受け取られてから終わるまでにたどる道すじです。スタッフや来場者とのやりとりで、どこにいるのかがわかると、説明がしやすくなります。</p>
+  <div class="svgfig">
+    <svg viewBox="0 0 860 330" role="img" aria-label="整理券の状態の移り変わり。待っている、呼出中、相談中、完了。呼出中から不在へ、不在から復帰で待っているへ戻る。時間切れで無効。待っている間はキャンセルできる。">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker>
+      </defs>
+      <rect x="0" y="0" width="860" height="330" fill="var(--surface)"/>
+      <!-- 主線 -->
+      <g font-size="17" font-weight="700" text-anchor="middle">
+        <rect x="20" y="60" width="150" height="64" rx="32" fill="var(--sunk)" stroke="var(--ink)" stroke-width="2"/><text x="95" y="98" fill="var(--ink)">待っている</text>
+        <rect x="240" y="60" width="150" height="64" rx="32" fill="var(--mark)" stroke="var(--ink)" stroke-width="2"/><text x="315" y="98" fill="var(--ink)">呼出中</text>
+        <rect x="460" y="60" width="150" height="64" rx="32" fill="var(--staff-wash)" stroke="var(--ink)" stroke-width="2"/><text x="535" y="98" fill="var(--ink)">相談中</text>
+        <rect x="680" y="60" width="150" height="64" rx="32" fill="var(--ink)"/><text x="755" y="98" fill="var(--surface)">完了</text>
+        <rect x="240" y="220" width="150" height="64" rx="32" fill="var(--warn-wash)" stroke="var(--warn)" stroke-width="2"/><text x="315" y="258" fill="var(--warn)">不在</text>
+        <rect x="460" y="220" width="150" height="64" rx="12" fill="var(--sunk)" stroke="var(--ink-soft)" stroke-width="2" stroke-dasharray="6 4"/><text x="535" y="258" fill="var(--ink-soft)">無効</text>
+        <rect x="20" y="220" width="150" height="64" rx="12" fill="var(--sunk)" stroke="var(--ink-soft)" stroke-width="2" stroke-dasharray="6 4"/><text x="95" y="258" fill="var(--ink-soft)">キャンセル</text>
+      </g>
+      <g font-size="14" fill="var(--ink-soft)" text-anchor="middle">
+        <path d="M172 92 H236" stroke="var(--ink)" stroke-width="2.5" marker-end="url(#ar)"/><text x="204" y="52">次の方を呼ぶ</text><text x="204" y="70" font-size="12">（スタッフ）</text>
+        <path d="M392 92 H456" stroke="var(--ink)" stroke-width="2.5" marker-end="url(#ar)"/><text x="424" y="52">相談を始める</text>
+        <path d="M612 92 H676" stroke="var(--ink)" stroke-width="2.5" marker-end="url(#ar)"/><text x="644" y="52">相談を終える</text>
+        <path d="M315 126 V216" stroke="var(--warn)" stroke-width="2.5" marker-end="url(#ar)"/><text x="350" y="176" text-anchor="start" fill="var(--warn)">不在（来ない）</text>
+        <path d="M238 240 C150 210 110 170 100 128" stroke="var(--staff)" stroke-width="2.5" fill="none" marker-end="url(#ar)"/><text x="205" y="160" text-anchor="start" fill="var(--staff)">復帰（先頭へ）</text>
+        <path d="M392 252 H456" stroke="var(--ink-soft)" stroke-width="2.5" stroke-dasharray="5 4" marker-end="url(#ar)"/><text x="424" y="310">時間切れ</text>
+        <path d="M95 126 V216" stroke="var(--ink-soft)" stroke-width="2.5" stroke-dasharray="5 4" marker-end="url(#ar)"/><text x="86" y="166" text-anchor="end" font-size="13">来場者が</text><text x="86" y="184" text-anchor="end" font-size="13">取り消す</text>
+      </g>
+      <text x="430" y="24" text-anchor="middle" font-size="14" fill="var(--ink-soft)">閉場の時刻になると、終わっていない整理券はすべて「無効」になります</text>
+    </svg>
+  </div>
+  <div class="box note"><span class="ic">i</span><div><b>整理券の番号</b><p>番号は <b>101</b> から順に、会場全体で通し番号になります。学生の列でも教員の列でも、番号が重なることはありません。</p></div></div>
+</section>
+
+<!-- ===================== 第9章 ===================== -->
+<section class="ch" id="ch9">
+  <div class="ch-head"><span class="ch-no">第9章</span><h2>困ったとき</h2></div>
+  <p>よくある困りごとと、その対応です。質問の行を押すと、答えが開きます。</p>
+  <div class="faq">
+    <details open><summary>管理画面にログインできない</summary><div class="ans">
+      <p>「ID かパスワードが違います。」と出たら、次を確かめてください。</p>
+      <ul><li>メールアドレスの打ち間違い（全角・半角、余分な空白）</li><li>パスワードの大文字・小文字（キーボードの <span class="key">Caps Lock</span> が点いていないか）</li></ul>
+      <p>「試行回数が多すぎます。」と出たら、しばらく（30分ほど）待ってから試してください。</p>
+      <p><b>パスワードを忘れたとき</b>は、画面からは直せません。技術担当者に連絡して、仮パスワードを出し直してもらってください。</p>
+    </div></details>
+    <details><summary>学生のスマホの電池が切れた・こわれた</summary><div class="ans">
+      <ol class="steps">
+        <li><div><p>管理画面の「当日」のタブで、その学生の枠の <u>強制解除</u> → <span class="btnname dark">担当を外す</span> を押します。</p></div></li>
+        <li><div><p>学生に、別のスマホ（友人のものや予備）で同じスタッフコードを入れてもらいます。</p></div></li>
+        <li><div><p>「この枠を担当して受付を始める」を押せば、列も対応中の方も、そのまま続きから使えます。</p></div></li>
+      </ol>
+      <p>すぐに代わりのスマホがないときは、その列の受付停止スイッチをオンにしておくと、新しい人が並ばずにすみます。</p>
+    </div></details>
+    <details><summary>学生が「ほかの端末が担当中」と言っている</summary><div class="ans">
+      <p>前に使ったスマホがまだ担当になっています。前のスマホで <u>担当を外れる</u> を押してもらうか、管理画面の <u>強制解除</u> で外してください。</p>
+    </div></details>
+    <details><summary>「発券が急に増えています」と黄色いお知らせが出た</summary><div class="ans">
+      <p>入場コードが会場の外（SNS など）に広まり、会場にいない人が整理券を取っている心配があります。</p>
+      <ol class="steps">
+        <li><div><p>まず会場の様子を見て、本当に来場者が増えただけか確かめます。</p></div></li>
+        <li><div><p>外に広まったと思われるときは、「コード」のタブで入場コードを <span class="btnname">作り直す</span> を押し、ポスターに新しい番号のシールを貼ります。すでに入場した人はそのまま使えます。</p></div></li>
+      </ol>
+    </div></details>
+    <details><summary>「入場コード／スタッフコードの入力の失敗が増えています」と出た</summary><div class="ans">
+      <p>入場コードの失敗：ポスターの数字が読みにくい、まちがって印刷されている、などが考えられます。ポスターを確かめてください。</p>
+      <p>スタッフコードの失敗：伝えた番号がまちがっていないか、学生・教員に確かめてください。だれかが番号を当てずっぽうで試している可能性もあります。心配なときはスタッフコードを作り直してください。</p>
+    </div></details>
+    <details><summary>来場者が「呼ばれていないのに、もう番が過ぎていた」と言う</summary><div class="ans">
+      <p>スマホを閉じていたりロックしていたりすると、呼び出しは届きません。呼ばれてから決められた時間（ふつう10分）のうちなら、担当のスタッフが <span class="btnname">復帰</span> を押して列の先頭に戻せます。時間を過ぎていたら、整理券を取り直してもらってください。</p>
+    </div></details>
+    <details><summary>ある学生の列にばかり人が集まる／ある列が「一時停止中」のまま</summary><div class="ans">
+      <p>列がいっぱい（上限に達した）になると、自動で受付が止まります。「当日」のタブで、状態の下に「上限到達」と出ていればこれです。相談が進んで列が減ると自動で再開します。上限を増やしたいときは <b>＋</b> を押してください。</p>
+      <p>「担当の停止」と出ていれば、学生が自分でスイッチを入れています。休憩が終わったか確かめてください。</p>
+    </div></details>
+    <details><summary>開場の時刻になったのに始まらない／早く始めたい</summary><div class="ans">
+      <p>「イベント設定」の開場の日時が正しいか確かめてください（年・月・午前午後）。早く始めたいときは、「当日」のタブの <span class="btnname dark">いま開場する</span> を押します。</p>
+    </div></details>
+    <details><summary>閉場を間違えて押してしまった</summary><div class="ans">
+      <p>閉場は<b>元に戻せません</b>。残っていた整理券も使えなくなっています。その日のうちに受付を続ける必要があるときは、技術担当者に相談のうえ、新しいイベントを作り直すことになります（来場者は整理券を取り直します）。</p>
+    </div></details>
+    <details><summary>いきなり「管理者ログイン」の画面に戻った</summary><div class="ans">
+      <p>30分さわらなかったので、自動でログアウトしました。もう一度ログインしてください。故障ではありません。</p>
+    </div></details>
+    <details><summary>画面がおかしい・動かない（どの画面でも）</summary><div class="ans">
+      <p>まず、ページを<b>読み込み直して</b>ください。パソコンは <span class="key">F5</span> キー（Mac は <span class="key">⌘</span> ＋ <span class="key">R</span>）、スマホは画面を下に引っぱるか、アドレスの横の ↻ を押します。整理券やスタッフの担当は消えません。</p>
+      <p>それでも直らないときは、電波（Wi-Fi・モバイル回線）を確かめてから、技術担当者に連絡してください。そのとき、<b>画面の写真</b>と<b>だいたいの時刻</b>を伝えると、原因を調べやすくなります。</p>
+    </div></details>
+  </div>
+</section>
+
+<!-- ===================== 第10章 ===================== -->
+<section class="ch" id="ch10">
+  <div class="ch-head"><span class="ch-no">第10章</span><h2>守ってほしいこと・連絡先</h2></div>
+  <h3>必ず守ってほしいこと</h3>
+  <div class="stack">
+    <div class="box danger"><span class="ic">1</span><div><b>本名・SNS・学校名は登録しない</b><p>学生スタッフはニックネームで登録します。出身高校、小さなサークルの名前、SNS の ID など、本人がわかってしまう情報は書かないでください（システムも URL や SNS の ID ははじきます）。</p></div></div>
+    <div class="box danger"><span class="ic">2</span><div><b>パスワードとコードを人に見せない・貼り出さない</b><p>管理者のパスワードは、だれにも教えないでください。スタッフコードは本人にだけ伝えます。<b>ポスターに書いてよいのは入場コード（7桁）だけ</b>です。</p></div></div>
+    <div class="box danger"><span class="ic">3</span><div><b>閉場は、確かめてから</b><p>「いま閉場する」は元に戻せません。ふつうは閉場の時刻に自動で閉まるので、押す必要はありません。</p></div></div>
+    <div class="box warn"><span class="ic">4</span><div><b>共用のパソコンでは、使い終わったらログアウト</b><p>画面右上の <u>ログアウト</u> を押してから離れてください。</p></div></div>
+  </div>
+
+  <h3>技術担当者に頼むこと</h3>
+  <p>次のことは管理画面からはできません。技術担当者に頼んでください。</p>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>こんなとき</th><th>頼むこと</th></tr></thead>
+    <tbody>
+      <tr><td>管理者を増やしたい</td><td>新しい職員の管理者アカウントを作ってもらう。仮パスワードは本人に直接伝えてもらう</td></tr>
+      <tr><td>パスワードを忘れた</td><td>仮パスワードを出し直してもらう</td></tr>
+      <tr><td>担当の職員が異動した</td><td>前の担当者のアカウントを使えなくしてもらう</td></tr>
+      <tr><td>アドレス（URL）を変えたい</td><td>大学の正式なアドレスで開けるようにしてもらう</td></tr>
+      <tr><td>画面が動かない・おかしい</td><td>画面の写真と時刻を添えて調べてもらう</td></tr>
+    </tbody>
+  </table></div>
+  <div class="box note"><span class="ic">i</span><div><b>連絡先（書き込んでおいてください）</b>
+    <p>技術担当者：<span class="blank">&nbsp;</span></p>
+    <p>電話・メール：<span class="blank">&nbsp;</span></p>
+    <p>当日の連絡方法：<span class="blank">&nbsp;</span></p>
+  </div></div>
+  <details class="small" style="background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:12px 18px">
+    <summary style="cursor:pointer;font-weight:700">技術担当者向けのメモ（職員の方は読まなくて大丈夫です）</summary>
+    <ul style="margin:10px 0 0">
+      <li>本番は Firebase プロジェクト <code>oc-ticket-2027</code>（asia-northeast1）。ソースは GitHub の MG-Ambassador のリポジトリ。main へのマージで自動デプロイ。</li>
+      <li>管理者の作成：<code>node scripts/create-admin.mjs --project oc-ticket-2027 --email &lt;メール&gt;</code>。表示される仮パスワードは本人に直接伝える（配布物に載せない）。</li>
+      <li>管理者の ID には大学のメール（Microsoft 365）を使わない。2段階認証（TOTP）を登録すると届く通知メールのリンクをメールの安全確認が自動で開き、TOTP が取り消されるため。TOTP は必須ではない。</li>
+      <li>開催日（とリハーサル）は匿名ログインの上限を引き上げておく（docs/p4-integration.md）。</li>
+    </ul>
+  </details>
+</section>
+
+<!-- ===================== 付録 ===================== -->
+<section class="ch" id="check">
+  <div class="ch-head"><span class="ch-no">付録</span><h2>当日のチェックリスト</h2></div>
+  <p>印刷して、終わったものに ✓ を入れてください。</p>
+  <div class="two">
+    <div class="check-group"><h4>前日まで</h4><ul class="check">
+      <li>「イベント設定」の開場・閉場の日時が正しい（年・月・日・時刻）</li>
+      <li>「枠」に学生スタッフが全員そろっている。位置（ブース記号）が会場の配置と合っている</li>
+      <li>ポスターの7桁と、「コード」のタブの入場コードが同じ</li>
+      <li>ポスターの QR を自分のスマホで読み取り、入場できることを確かめた</li>
+      <li>学生・教員にスタッフコードと第6章を渡した</li>
+      <li>入場コードを作り直したときのための、貼り替えシールの用意がある</li>
+    </ul></div>
+    <div class="check-group"><h4>当日 開場前</h4><ul class="check">
+      <li>管理画面にログインし、「当日」のタブを開いた</li>
+      <li>学生全員がログインし、「準備中」の枠がない</li>
+      <li>教員がブース番号を入れている（教員相談の担当の欄にブースが出ている）</li>
+      <li>スタッフにスマホの充電と、自動ロックを長めにする設定をお願いした</li>
+      <li>会場にポスターが貼られている</li>
+    </ul></div>
+    <div class="check-group"><h4>開場中（ときどき見る）</h4><ul class="check">
+      <li>黄色いお知らせが出ていない</li>
+      <li>「最終確認」が茶色の文字になっている担当がいない</li>
+      <li>「一時停止中」のまま長く止まっている列がない</li>
+    </ul></div>
+    <div class="check-group"><h4>終わったあと</h4><ul class="check">
+      <li>閉場の時刻に「閉場」になった</li>
+      <li>閉場の1時間後に「統計」を見て、数字を保存した</li>
+      <li>共用のパソコンからログアウトした</li>
+    </ul></div>
+  </div>
+</section>
+
+<footer>
+  <p>整理券システム 取扱説明書（2026年11月版）。画面の文字・数値は、2026年11月27日時点のシステムに合わせています。画面が変わったときは、この説明書も直してください。</p>
+</footer>
+
+</div>
