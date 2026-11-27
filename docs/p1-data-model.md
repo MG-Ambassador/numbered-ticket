@@ -40,7 +40,7 @@
 | `staff/{uid}` | 本人、管理者 |
 | `auditLog/*`, `stats/*` | 管理者（運営アカウントのログイン） |
 | `operators/*`, `operatorAudit/*`, `rateLimits/*`（イベントに属さない） | 誰も読み書きできない（ルールの `get()` と Admin SDK だけ） |
-| Storage `events/{eid}/avatars/{slotId}` | `slots` と同じ |
+| Storage（全パス） | 誰も読み書きできない（2026-11-27 にプロフィール画像を廃止。Storage は使っていない） |
 
 - 設計書の `visitors` / `staff` の「本人、スタッフ」は「それぞれ本人」と読み、スタッフが来場者の入場記録を読む用途はないので許可していない。
 - 担当スタッフかどうかは整理券の `slotId` だけで決まる（`faculty` なら教員、それ以外は占有者）。そのため、スタッフは `where('slotId', '==', X)` で自分の列の整理券を一覧できる。来場者は `where('visitorUid', '==', 自分)` でのみ一覧できる。
@@ -67,4 +67,4 @@
 
 `firebase deploy --only firestore:rules,storage --project prod` で Firestore・Storage のルールをデプロイした。本番のルールが手元のファイルと一致することを Rules API で確認済み。P0 の検証用パス（`verify/mfa`, `verifyLive`）はなくなったため、`verify/src/prod-reeval.mjs` はもう動かない
 
-Storage ルールの `firestore.get()` のため、`service-<番号>@firebase-rules.iam.gserviceaccount.com` に `roles/firebaserules.firestoreServiceAgent`（Firebase Rules Firestore Service Agent）を付与した（2026-11-23）。実際に画像が読めるかは、画像を置く P2・P3 で確かめる
+Storage ルールの `firestore.get()` のため、`service-<番号>@firebase-rules.iam.gserviceaccount.com` に `roles/firebaserules.firestoreServiceAgent`（Firebase Rules Firestore Service Agent）を付与した（2026-11-23）。（プロフィール画像は 2026-11-27 に廃止し、Storage ルールはすべて拒否だけになった。この権限はもう使わない）
