@@ -52,6 +52,7 @@ afterAll(async () => {
 // ---- 利用者 -----------------------------------------------------------------
 
 const ANON = { firebase: { sign_in_provider: 'anonymous' } };
+const PASSWORD = { firebase: { sign_in_provider: 'password' } };
 const TOTP = { firebase: { sign_in_provider: 'password', sign_in_second_factor: 'totp' } };
 
 const users = {
@@ -66,10 +67,13 @@ const users = {
   /** 枠を占有していない学生スタッフ */
   studentFree: ['sC', { ...ANON, eid: E, role: 'student' }],
   faculty: ['f1', { ...ANON, eid: E, role: 'faculty' }],
-  admin: ['adm', { ...TOTP, admin: true }],
-  adminNoTotp: ['adm', { firebase: { sign_in_provider: 'password' }, admin: true }],
-  adminSms: ['adm', { firebase: { sign_in_provider: 'password', sign_in_second_factor: 'phone' }, admin: true }],
-  /** admin クレームのない TOTP ユーザー */
+  admin: ['adm', { ...PASSWORD, admin: true }],
+  /** TOTP を登録済みの管理者（これまでの運用アカウント）も読める */
+  adminTotp: ['adm', { ...TOTP, admin: true }],
+  /** admin クレームを持つが、メール/パスワードのログインでない（ありえないが、ルールで拒否する） */
+  adminAnon: ['adm', { ...ANON, admin: true }],
+  /** admin クレームのないパスワード・TOTP ユーザー */
+  passwordOnly: ['x2', PASSWORD],
   totpOnly: ['x1', TOTP],
 } satisfies Record<string, [string, TokenOptions]>;
 type User = keyof typeof users | 'unauthenticated';
@@ -250,11 +254,12 @@ describe('Firestore', () => {
       await assertFails(read('studentA', `events/${OTHER}/tickets/o1`));
     });
 
-    it('管理者は TOTP 済みのときだけ読める', async () => {
+    it('管理者（admin クレーム＋パスワードのログイン）は読める。TOTP は不要', async () => {
       await assertSucceeds(read('admin', `${P}/tickets/t1`));
+      await assertSucceeds(read('adminTotp', `${P}/tickets/t1`));
       await assertSucceeds(getDocs(collection(fs('admin'), `${P}/tickets`)));
-      await assertFails(read('adminNoTotp', `${P}/tickets/t1`));
-      await assertFails(read('adminSms', `${P}/tickets/t1`));
+      await assertFails(read('adminAnon', `${P}/tickets/t1`));
+      await assertFails(read('passwordOnly', `${P}/tickets/t1`));
       await assertFails(read('totpOnly', `${P}/tickets/t1`));
     });
   });
@@ -273,7 +278,8 @@ describe('Firestore', () => {
       await assertFails(read('visitorOther', P));
       await assertFails(read('anonymous', P));
       await assertFails(read('unauthenticated', P));
-      await assertFails(read('adminNoTotp', P));
+      await assertFails(read('adminAnon', P));
+      await assertFails(read('passwordOnly', P));
     });
     it('イベントは一覧できない（管理者を除く）', async () => {
       await assertFails(getDocs(collection(fs('visitor1'), 'events')));
@@ -390,12 +396,12 @@ describe('Firestore', () => {
 
   describe('監査ログ auditLog と統計 stats', () => {
     const paths = [`${P}/auditLog/l1`, `${P}/stats/2027-03-20`];
-    it('TOTP 済みの管理者だけ読める', async () => {
+    it('管理者だけ読める', async () => {
       for (const p of paths) await assertSucceeds(read('admin', p));
       await assertSucceeds(getDocs(collection(fs('admin'), `${P}/auditLog`)));
     });
-    it('TOTP なしの管理者・スタッフ・来場者は読めない', async () => {
-      for (const u of ['adminNoTotp', 'adminSms', 'totpOnly', 'studentA', 'faculty', 'visitor1'] as const) {
+    it('管理者でない人・スタッフ・来場者は読めない', async () => {
+      for (const u of ['adminAnon', 'passwordOnly', 'totpOnly', 'studentA', 'faculty', 'visitor1'] as const) {
         for (const p of paths) await assertFails(read(u, p));
       }
     });
@@ -472,13 +478,14 @@ describe('Storage（プロフィール画像）', () => {
     await setEventState('closed');
     await assertFails(get('studentFree'));
   });
-  it('別イベント・未入場・未ログイン・TOTP なしの管理者は読めない', async () => {
-    for (const u of ['visitorOther', 'anonymous', 'unauthenticated', 'adminNoTotp'] as const) {
+  it('別イベント・未入場・未ログイン・管理者でない人は読めない', async () => {
+    for (const u of ['visitorOther', 'anonymous', 'unauthenticated', 'adminAnon', 'passwordOnly'] as const) {
       await assertFails(get(u));
     }
   });
-  it('TOTP 済みの管理者は読める', async () => {
+  it('管理者は読める（TOTP は不要）', async () => {
     await assertSucceeds(get('admin'));
+    await assertSucceeds(get('adminTotp'));
   });
   it('誰もアップロード・削除できない（アップロードは関数で行う）', async () => {
     for (const u of ['visitor1', 'studentA', 'admin'] as const) {

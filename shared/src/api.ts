@@ -90,7 +90,7 @@ export interface SetQueueLimitRequest {
 }
 
 // ---------------------------------------------------------------------------
-// 管理者（A-01〜A-07）。呼べるのは admin クレーム＋TOTP 済みのトークンだけ
+// 管理者（A-01〜A-07）。呼べるのは admin クレーム＋メール/パスワードのログインのトークンだけ
 // 日時は ISO 8601 の文字列でやり取りする（callable は Timestamp をそのまま運べないため）
 // ---------------------------------------------------------------------------
 
@@ -119,7 +119,7 @@ export interface StudentSlotInput {
 export type AdminRequest =
   /** A-01: ログインの記録（auditLog の admin.login） */
   | { op: 'recordLogin'; eid: string }
-  /** A-01: 初回設定（パスワード変更・TOTP 登録）が済んだら initial クレームを外す */
+  /** A-01: 初回設定（パスワード変更）が済んだら initial クレームを外す */
   | { op: 'completeSetup' }
   /** A-02 */
   | { op: 'createEvent'; settings: EventSettings }

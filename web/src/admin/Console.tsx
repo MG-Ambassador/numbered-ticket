@@ -73,7 +73,6 @@ export function Console({ session, onSignOut }: { session: AdminSession; onSignO
         <span className="eyebrow">管理者 · ADMIN</span>
         <span className="row small">
           {session.email}
-          {session.emulated && <span className="st st-paused">Emulator（TOTP 省略）</span>}
           <button className="quiet" onClick={onSignOut}>
             ログアウト
           </button>

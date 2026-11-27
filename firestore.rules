@@ -17,11 +17,11 @@ service cloud.firestore {
       return request.auth.token.get(key, null);
     }
 
-    // 管理者: admin クレーム＋TOTP 済みのトークンのみ（7.4-1）
+    // 管理者: admin クレーム＋メール/パスワードのログイン（TOTP は必須にしない。2026-11-27 に緩和）
     function isAdmin() {
       return signedIn()
         && claim('admin') == true
-        && request.auth.token.firebase.get('sign_in_second_factor', null) == 'totp';
+        && request.auth.token.firebase.get('sign_in_provider', null) == 'password';
     }
 
     function isMember(eid) {

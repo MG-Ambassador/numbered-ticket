@@ -25,12 +25,12 @@ export type StaffRole = Exclude<Role, 'visitor'>;
  * 関数が setCustomUserClaims で付けるクレーム。ルールは request.auth.token で読む。
  * - 来場者: 匿名ログイン → 入場コード照合（V-01）で { eid, role: 'visitor' }
  * - スタッフ: 匿名ログイン → スタッフコード（S-01）で { eid, role: 'student' | 'faculty' }。役割はコードで決まる
- * - 管理者: 管理スクリプトで { admin: true }。ルールは TOTP 済み（sign_in_second_factor == 'totp'）も必須にする
+ * - 管理者: 管理スクリプトで { admin: true }。ルールは sign_in_provider == 'password' を要する（TOTP は必須にしない）
  * クレームを付けたあと、クライアントは getIdToken(true) でトークンを更新する。
  */
 export type AuthClaims =
   | { eid: string; role: Role; admin?: never }
-  /** initial: 管理スクリプトで作った直後。画面は初回のパスワード変更と TOTP 登録を求め、済んだら completeSetup で外す */
+  /** initial: 管理スクリプトで作った直後。画面は初回のパスワード変更を求め、済んだら completeSetup で外す */
   | { admin: true; initial?: true; eid?: never; role?: never };
 
 // ---------------------------------------------------------------------------

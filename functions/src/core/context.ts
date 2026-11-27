@@ -23,7 +23,7 @@ export interface Caller {
   eid: string | null;
   role: Role | null;
   admin: boolean;
-  /** firebase.sign_in_second_factor（管理者は 'totp' が必須） */
+  /** firebase.sign_in_second_factor（管理者は TOTP を登録していれば 'totp'。必須ではない） */
   secondFactor: string | null;
   /** X-Forwarded-For の末尾（7.4-3）。取れなければ null */
   ip: string | null;
@@ -35,10 +35,10 @@ export function requireAnonymous(caller: Caller | null): Caller {
   return caller;
 }
 
-/** 管理者: admin クレーム＋TOTP 済みのトークン（ルールの isAdmin と同じ条件） */
+/** 管理者: admin クレーム＋メール/パスワードのログイン（ルールの isAdmin と同じ条件。TOTP は必須にしない） */
 export function requireAdmin(caller: Caller | null): Caller {
   if (!caller) fail('unauthenticated', 'forbidden');
-  if (!caller.admin || caller.secondFactor !== 'totp') fail('permission-denied', 'forbidden');
+  if (!caller.admin || caller.provider !== 'password') fail('permission-denied', 'forbidden');
   return caller;
 }
 

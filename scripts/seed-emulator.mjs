@@ -7,8 +7,7 @@
 // - 学生枠 5 つ（すべて担当なし＝準備中）と教員相談の枠
 // - 開場時刻は今の1時間前、閉場時刻は今の6時間後
 // - --reset で Firestore の中身を全部消してから作る
-// - 管理者 admin@example.com（パスワード dev-admin-password）。Emulator は TOTP に対応していないので、
-//   初回設定（initial クレーム）なしで作る。管理画面は Emulator のときだけ TOTP を省略する（web/src/admin/session.ts）
+// - 管理者 admin@example.com（パスワード dev-admin-password）。初回設定（initial クレーム）なしで作る
 // 本番のイベント作成は管理画面（adminApi の createEvent）で行う。ここでは board も含めて直接書く。
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';

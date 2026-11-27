@@ -17,7 +17,7 @@ service firebase.storage {
     function isAdmin() {
       return signedIn()
         && claim('admin') == true
-        && request.auth.token.firebase.get('sign_in_second_factor', null) == 'totp';
+        && request.auth.token.firebase.get('sign_in_provider', null) == 'password';
     }
 
     function hasRole(eid, roles) {
