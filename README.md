@@ -9,7 +9,7 @@
 | `shared/` | 共有の型・定数・Firestore のパス |
 | `functions/` | Cloud Functions（asia-northeast1） |
 | `web/` | React + Vite の SPA |
-| `scripts/` | 管理スクリプト（`create-admin.mjs`: 管理者の作成・無効化、`setup-wif.sh`: デプロイ用の WIF の設定） |
+| `scripts/` | 管理スクリプト（`create-operator.mjs`: 運営アカウント（管理者）の作成・再発行・停止、`setup-wif.sh`: デプロイ用の WIF の設定） |
 | `verify/` | ルールテスト（`p1-rules.test.ts`）、関数のテスト（`p2/`、`e2e/`）、本番検証のスクリプト |
 
 ## 開発

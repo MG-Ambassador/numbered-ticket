@@ -13,7 +13,7 @@
 | --- | --- |
 | 関数の入口（callable・ブロッキング関数） | `functions/src/index.ts` |
 | 関数の本体 | `functions/src/core/*.ts`（`visitor.ts`, `staff.ts`, `admin.ts`, `lifecycle.ts`, `board.ts`, `rateLimit.ts` など） |
-| 管理者の作成・無効化 | `scripts/create-admin.mjs` |
+| 運営アカウント（ログイン・ロール・アカウント管理） | `functions/src/core/operators.ts`, `password.ts`, `shared/src/roles.ts`, `scripts/create-operator.mjs` |
 | 入出力とエラー理由 | `shared/src/api.ts` |
 | テスト（本体を Emulator に対して直接呼ぶ） | `verify/src/p2/visitor.test.ts`, `staff.test.ts`, `admin.test.ts`, `scheduler.test.ts`（`npm run test:functions`） |
 | E2E（Functions Emulator 経由） | `verify/src/e2e/visitor-flow.test.ts`（`npm run test:e2e`） |
@@ -92,7 +92,7 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 
 | op | 内容 |
 | --- | --- |
-| `recordLogin` / `completeSetup`（A-01） | ログインを auditLog に記録。初回設定（パスワード変更・TOTP 登録）のあとで `initial` クレームを外す |
+| `recordLogin`（A-01） | ログインを auditLog に記録 |
 | `createEvent` / `updateEvent`（A-02） | 作成時にコード2つ・教員相談の枠と列・board を一緒に作る。閉場後は変更不可。開催は24時間以内、閉場は今より後（年の入力違いで意図せず開場するのを防ぐ）。開場中に開場時刻を未来へ変えると、入場・整理券がなければ開場前に戻す（あれば `eventStarted`） |
 | `viewCodes` / `reissueCode`（A-03） | どちらも auditLog に残す。再発行しても、入場済み・ログイン済みの端末はそのまま使える |
 | `importSlots` / `upsertSlot` / `updateFacultyProfile` / `deleteSlot` / `uploadAvatar`（A-04） | 下の「枠の登録」 |
@@ -115,13 +115,25 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 - 全体の一時停止: board を全枠作り直す。列ごとの停止の設定は残る
 - 強制解除: 学生の占有・教員のブースを外す。対応中の整理券は列に残し `staffUid` を null にして、次にその列を担当したスタッフが引き継げるようにした（壊れた端末の対応中が宙に浮かないように）
 
-**管理者の作成**（`scripts/create-admin.mjs`）: `emailVerified: true`、クレーム `{ admin: true, initial: true }`、20文字の仮パスワードを一度だけ表示する。本番は運用アカウントの Application Default Credentials で実行する。`--disable` で無効化（セッションも失効）。
+**運営アカウント**（2026-11-27 から。明学の質問箱 `meigaku-question-box` の運営ID＋パスワード方式と同じ体系）:
+
+- `operators/{運営ID}` に `{ displayName, role, passwordHash, active, mustChange, version }`。パスワードは scrypt（N=16384, r=8, p=5, ユーザーごとの salt）のハッシュだけを保存し、15〜128文字。運営IDは半角英数字・`-`・`_` の3〜40文字（小文字に正規化）
+- ログイン `operatorLogin`（未ログインで呼べる）: 運営ID＋パスワードを照合して Firebase のカスタムトークン（クレーム `admin`・`opId`・`opv`）を返し、画面は `signInWithCustomToken` で入る。未登録 ID・停止中・誤りはどれも同じ `invalidCredentials`（未登録 ID でも同じ計算をする）。試行は成否にかかわらず数え、IP ごとに10分30回・運営IDごとに15分10回まで
+- 有効期間は8時間・延長なし（ID トークンの `auth_time` で判定。ルールも同じ）。管理画面のログインはタブを閉じると消える（`browserSessionPersistence`）
+- `version` を進める操作（パスワード変更・再発行・停止・再開・ロール変更）で、そのアカウントの全ログインが次の操作から無効になる（callable は毎回 `operators` を読んで照合、ルールは `get()`）
+- 仮パスワードのまま（`mustChange`）は `me` と `changePassword` しか呼べない
+- ロール5種（開発者・責任者・教員・アンバサダー・スタッフ）と、op ごとの必要な権限は `shared/src/roles.ts`（`ADMIN_OP_PERMISSIONS`）。画面は表示を絞るだけで、判定は関数
+- アカウント管理（`listOperators`・`createOperator`・`operatorAction`・`setOperatorRole`）は開発者（全ロール）と責任者（教員以下）だけ。自分自身の停止・再発行・ロール変更は不可。操作は `operatorAudit` に残す（パスワードなど秘密は残さない）
+- 最初の管理者は画面から作れないので CLI で作る:
 
 ```bash
-node scripts/create-admin.mjs --project oc-ticket-2027 --email <メール>
+gcloud auth application-default login   # 運用アカウントで
+node scripts/create-operator.mjs --project oc-ticket-2027 --login-id <運営ID> --display-name <表示名> --role owner            # 確認のみ
+node scripts/create-operator.mjs --project oc-ticket-2027 --login-id <運営ID> --display-name <表示名> --role owner --execute  # 作成
+node scripts/create-operator.mjs --project oc-ticket-2027 --login-id <運営ID> --reset --execute                               # 再発行
 ```
 
-画面（P3）は `initial` クレームがあればパスワード変更と TOTP 登録の画面に進め、済んだら `completeSetup` を呼ぶ。サーバ側ではパスワードを変えたかまでは確かめられない（TOTP の登録だけ確かめる）。
+- **デプロイの前提**: `createCustomToken` は関数の実行サービスアカウントが自分自身に `roles/iam.serviceAccountTokenCreator` を持っていないと `iam.serviceAccounts.signBlob` で失敗する（Emulator では不要）。初めて出す前に付ける: `gcloud iam service-accounts add-iam-policy-binding <実行SA> --member=serviceAccount:<実行SA> --role=roles/iam.serviceAccountTokenCreator --project oc-ticket-2027`（実行SA は `gcloud functions describe adminApi --region asia-northeast1 --gen2 --format='value(serviceConfig.serviceAccountEmail)'` で分かる）
 
 ### 10. トランザクションの再試行
 

@@ -1,14 +1,15 @@
-// 管理者の画面（A-01 ID・パスワードのログイン・初回設定）。ログイン後は Console.tsx
-// TOTP は必須にしない（2026-11-27）。すでに TOTP を登録したアカウントは、これまでどおりコードも求められる
+// 管理者の画面（A-01 運営ID＋パスワードのログイン・初回のパスワード変更）。ログイン後は Console.tsx
+// 明学の質問箱と同じ方式: 運営ID＋パスワード → 関数がカスタムトークンを返し、Firebase にログインする。
+// 仮パスワードのままの間は、パスワード変更の画面だけを出す。ログインは8時間（延長なし）・タブを閉じると消える
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { getMultiFactorResolver, signInWithEmailAndPassword, signOut, TotpMultiFactorGenerator, updatePassword, type MultiFactorResolver } from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
+import { FUNCTION_NAMES, passwordValid, PASSWORD_MIN_LENGTH, type AdminRequest, type OperatorIdentity, type OperatorLoginRequest, type OperatorLoginResponse } from '@nt/shared';
 import { clients } from '../firebase';
-import { errorMessage } from '../lib/api';
+import { ApiError, call, errorMessage } from '../lib/api';
 import { useAuthState } from '../lib/hooks';
 import { Header, Loading, Notice } from '../ui';
 import { Console } from './Console';
-import { productionSession } from './session';
+import { fetchIdentity, productionSession } from './session';
 
 const c = clients('admin');
 /** A-01: 30分無操作でログアウト */
@@ -16,17 +17,39 @@ const IDLE_MS = 30 * 60_000;
 
 export function AdminApp() {
   const auth = useAuthState(c.auth);
-
-  useIdleLogout(!!auth.user);
-
   const user = auth.user;
   const isAdmin = auth.claims.admin === true;
-  const initial = auth.claims.initial === true;
-  const session = useMemo(() => (user && isAdmin && !initial ? productionSession(user) : null), [user, isAdmin, initial]);
+  const [identity, setIdentity] = useState<OperatorIdentity | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  useIdleLogout(!!user);
+
+  // ログインしたら、自分の情報（ロール・仮パスワードのままか）を取る。ログイン状態が変わるたびに取り直す
+  useEffect(() => {
+    setIdentity(null);
+    setProblem(null);
+    if (!user || !isAdmin) return;
+    let alive = true;
+    fetchIdentity().then(
+      (me) => alive && setIdentity(me),
+      (e) => {
+        if (!alive) return;
+        // 期限切れ・停止・再発行されたログインは、ログイン画面に戻す
+        if (e instanceof ApiError && (e.reason === 'sessionExpired' || e.reason === 'forbidden')) void signOut(c.auth);
+        else setProblem(errorMessage(e));
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [user?.uid, isAdmin, auth.claims.opv]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const session = useMemo(() => (user && isAdmin && identity && !identity.mustChange ? productionSession(user, identity) : null), [user, isAdmin, identity]);
 
   if (!auth.ready) return <Loading />;
   if (!user) return <Login />;
   if (!isAdmin) {
+    // 管理者以外のログイン（ありえないが、残っていたら外す）
     return (
       <Shell>
         <Notice kind="danger" icon="alert">
@@ -38,7 +61,20 @@ export function AdminApp() {
       </Shell>
     );
   }
-  if (initial) return <Setup />;
+  if (problem) {
+    return (
+      <Shell>
+        <Notice kind="danger" icon="alert">
+          {problem}
+        </Notice>
+        <button className="btn2" onClick={() => void signOut(c.auth)}>
+          ログアウト
+        </button>
+      </Shell>
+    );
+  }
+  if (!identity) return <Loading />;
+  if (identity.mustChange) return <ChangePassword identity={identity} onChanged={setIdentity} />;
   if (!session) return <Loading />;
   return <Console session={session} onSignOut={() => void signOut(c.auth)} />;
 }
@@ -69,45 +105,25 @@ function useIdleLogout(active: boolean) {
   }, [active]);
 }
 
-// ---- ログイン（ID・パスワード。TOTP 登録済みのアカウントはコードも） ------------------------------------------
+// ---- ログイン（運営ID・パスワード） ------------------------------------------------
 
 function Login() {
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
-  const [resolver, setResolver] = useState<MultiFactorResolver | null>(null);
-  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submitPassword(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await signInWithEmailAndPassword(c.auth, email.trim(), password);
-      // TOTP 未登録ならここでログインが終わる
+      const res = await call<OperatorLoginRequest, OperatorLoginResponse>(c.functions, FUNCTION_NAMES.operatorLogin, { loginId: loginId.trim(), password });
+      await signInWithCustomToken(c.auth, res.token);
     } catch (err) {
-      if (err instanceof FirebaseError && err.code === 'auth/multi-factor-auth-required') {
-        setResolver(getMultiFactorResolver(c.auth, err as never));
-      } else {
-        setError(authMessage(err));
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitCode(e: FormEvent) {
-    e.preventDefault();
-    if (!resolver) return;
-    const hint = resolver.hints.find((h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID);
-    if (!hint) return setError('認証アプリが登録されていません。事務局の担当者に連絡してください。');
-    setBusy(true);
-    setError(null);
-    try {
-      await resolver.resolveSignIn(TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code));
-    } catch (err) {
-      setError(authMessage(err));
+      const e2 = err instanceof ApiError ? err : null;
+      const wait = e2?.reason === 'rateLimited' ? e2.details?.retryAfterSeconds : undefined;
+      setError(wait ? `試行回数が多すぎます。${Math.ceil(wait / 60)}分ほど待ってからお試しください。` : errorMessage(err));
       setBusy(false);
     }
   }
@@ -115,100 +131,65 @@ function Login() {
   return (
     <Shell>
       <h1 className="t1">管理者ログイン</h1>
-      {!resolver ? (
-        <form className="list" onSubmit={submitPassword}>
-          <div className="field">
-            <label className="label" htmlFor="a-email">
-              ID（メールアドレス）
-            </label>
-            <input id="a-email" className="in" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="a-pass">
-              パスワード
-            </label>
-            <input id="a-pass" className="in" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          {error && (
-            <Notice kind="danger" icon="alert">
-              {error}
-            </Notice>
-          )}
-          <button className="btn" type="submit" disabled={busy || !email || !password}>
-            ログイン
-          </button>
-        </form>
-      ) : (
-        <form className="list" onSubmit={submitCode}>
-          <div className="field">
-            <label className="label" htmlFor="a-totp">
-              認証アプリの6桁のコード
-            </label>
-            <input
-              id="a-totp"
-              className="code-in"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              autoFocus
-            />
-          </div>
-          {error && (
-            <Notice kind="danger" icon="alert">
-              {error}
-            </Notice>
-          )}
-          <button className="btn" type="submit" disabled={busy || code.length !== 6}>
-            ログイン
-          </button>
-        </form>
-      )}
+      <form className="list" onSubmit={(e) => void submit(e)}>
+        <div className="field">
+          <label className="label" htmlFor="a-id">
+            運営ID
+          </label>
+          <input id="a-id" className="in" autoComplete="username" autoCapitalize="none" spellCheck={false} value={loginId} onChange={(e) => setLoginId(e.target.value)} />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="a-pass">
+            パスワード
+          </label>
+          <input id="a-pass" className="in" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        {error && (
+          <Notice kind="danger" icon="alert">
+            {error}
+          </Notice>
+        )}
+        <button className="btn" type="submit" disabled={busy || !loginId || !password}>
+          ログイン
+        </button>
+        <p className="small p">ログインは8時間で切れます。アカウントの発行・再発行は、責任者または開発者にご連絡ください。</p>
+      </form>
     </Shell>
   );
 }
 
-function authMessage(err: unknown): string {
-  const code = err instanceof FirebaseError ? err.code : '';
-  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-email')
-    return 'ID かパスワードが違います。';
-  if (code === 'auth/invalid-verification-code' || code === 'auth/invalid-totp-code' || code === 'auth/totp-challenge-timeout') return '認証アプリのコードが違うか、時間切れです。';
-  if (code === 'auth/too-many-requests') return '試行回数が多すぎます。しばらく待ってからお試しください。';
-  if (code === 'auth/password-does-not-meet-requirements') return 'パスワードは12文字以上にしてください。';
-  if (code === 'auth/requires-recent-login') return 'もう一度ログインしてから行ってください。';
-  if (code === 'auth/user-disabled') return 'このアカウントは無効になっています。';
-  return errorMessage(err);
-}
+// ---- 初回のパスワード変更（仮パスワードのまま） ------------------------------------------
 
-// ---- 初回設定（パスワード変更） ---------------------------------------------------
-
-function Setup() {
-  const user = c.auth.currentUser!;
-  const [password, setPassword] = useState('');
+function ChangePassword({ identity, onChanged }: { identity: OperatorIdentity; onChanged: (me: OperatorIdentity) => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (password !== confirm) return setError('確認のパスワードが一致しません。');
+    if (next !== confirm) return setError('確認のパスワードが一致しません。');
     setBusy(true);
     setError(null);
     try {
-      await updatePassword(user, password);
-      await productionSession(user).api({ op: 'completeSetup' });
-      await user.getIdToken(true);
+      const req: AdminRequest = { op: 'changePassword', currentPassword: current, newPassword: next };
+      const res = await call<AdminRequest, OperatorLoginResponse>(c.functions, FUNCTION_NAMES.admin, req);
+      // 変更で古いログインは無効になる。新しいトークンで入り直す
+      await signInWithCustomToken(c.auth, res.token);
+      onChanged(res.identity);
     } catch (err) {
-      setError(authMessage(err));
+      setError(errorMessage(err));
       setBusy(false);
     }
   }
 
   return (
     <Shell>
-      <h1 className="t1">初回設定</h1>
-      <p className="small p">はじめてのログインです。仮パスワードから、ご自身のパスワードに変えてください。</p>
+      <h1 className="t1">パスワードの変更</h1>
+      <p className="small p">
+        {identity.displayName}さん（運営ID: {identity.loginId}）、はじめてのログインです。仮パスワードから、ご自身のパスワードに変えてください。変えるまで、ほかの操作はできません。
+      </p>
       {error && (
         <Notice kind="danger" icon="alert">
           {error}
@@ -216,21 +197,30 @@ function Setup() {
       )}
       <form className="list" onSubmit={(e) => void submit(e)}>
         <div className="field">
-          <label className="label" htmlFor="s-pass">
-            新しいパスワード（12文字以上）
+          <label className="label" htmlFor="c-cur">
+            いまのパスワード（仮パスワード）
           </label>
-          <input id="s-pass" className="in" type="password" autoComplete="new-password" minLength={12} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input id="c-cur" className="in" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </div>
         <div className="field">
-          <label className="label" htmlFor="s-pass2">
+          <label className="label" htmlFor="c-new">
+            新しいパスワード（{PASSWORD_MIN_LENGTH}文字以上）
+          </label>
+          <input id="c-new" className="in" type="password" autoComplete="new-password" maxLength={128} value={next} onChange={(e) => setNext(e.target.value)} />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="c-new2">
             もう一度
           </label>
-          <input id="s-pass2" className="in" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <input id="c-new2" className="in" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </div>
-        <button className="btn" type="submit" disabled={busy || [...password].length < 12}>
+        <button className="btn" type="submit" disabled={busy || !current || !passwordValid(next)}>
           パスワードを変える
         </button>
       </form>
+      <button className="btn2" onClick={() => void signOut(c.auth)}>
+        ログアウト
+      </button>
     </Shell>
   );
 }

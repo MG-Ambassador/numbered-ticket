@@ -21,7 +21,7 @@
 | 来場者 | `{ eid, role: 'visitor' }` | 入場コード照合（V-01） |
 | 学生スタッフ | `{ eid, role: 'student' }` | 学生枠ごとのスタッフコード（S-01）。そのコードの枠だけを担当できる |
 | 教員スタッフ | `{ eid, role: 'faculty' }` | 教員共通のスタッフコード（S-01） |
-| 管理者 | `{ admin: true }` | 管理スクリプト。ルールは `sign_in_second_factor == 'totp'` も必須 |
+| 管理者（運営アカウント） | `{ admin: true, opId, opv }` | 運営ID＋パスワードのログイン（`operatorLogin` のカスタムトークン）。ルールは `operators/{opId}` が有効・仮パスワードでなく version が `opv` と同じ・ログインから8時間以内を確かめる |
 
 **理由**: `visitors/{uid}` などをルールで `get()` して判定すると、一覧の購読のたびにルール内の読み取りが増える。数百端末が `board/public` を購読するため、読み取りの無料枠（5万/日）を圧迫しやすい。クレームなら追加の読み取りがない。
 
@@ -38,7 +38,8 @@
 | `tickets/{id}` | 本人（開場中のみ）、担当スタッフ（開場前・開場中）、管理者 |
 | `visitors/{uid}` | 本人、管理者 |
 | `staff/{uid}` | 本人、管理者 |
-| `auditLog/*`, `stats/*` | 管理者（TOTP 済み） |
+| `auditLog/*`, `stats/*` | 管理者（運営アカウントのログイン） |
+| `operators/*`, `operatorAudit/*`, `rateLimits/*`（イベントに属さない） | 誰も読み書きできない（ルールの `get()` と Admin SDK だけ） |
 | Storage `events/{eid}/avatars/{slotId}` | `slots` と同じ |
 
 - 設計書の `visitors` / `staff` の「本人、スタッフ」は「それぞれ本人」と読み、スタッフが来場者の入場記録を読む用途はないので許可していない。

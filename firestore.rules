@@ -17,11 +17,23 @@ service cloud.firestore {
       return request.auth.token.get(key, null);
     }
 
-    // 管理者: admin クレーム＋メール/パスワードのログイン（TOTP は必須にしない。2026-11-27 に緩和）
+    // 管理者（運営アカウント）: 運営ID＋パスワードのログイン（operatorLogin のカスタムトークン）。
+    // - ログインから8時間以内（auth_time は ID トークンを更新しても変わらない。28800 = OPERATOR_SESSION_SECONDS）
+    // - operators/{opId} が有効・仮パスワードでなく、version がトークンの opv と同じ（停止・再発行・変更で古いログインが無効になる）
+    // 読める範囲はロールによらず管理者全員。書き込み・操作の権限はロールごとに関数が判定する
+    function operatorDoc() {
+      return get(/databases/$(database)/documents/operators/$(request.auth.token.opId)).data;
+    }
+
     function isAdmin() {
       return signedIn()
         && claim('admin') == true
-        && request.auth.token.firebase.get('sign_in_provider', null) == 'password';
+        && claim('opId') != null
+        && request.auth.token.firebase.get('sign_in_provider', null) == 'custom'
+        && request.time.toMillis() < (request.auth.token.auth_time + 28800) * 1000
+        && operatorDoc().active == true
+        && operatorDoc().mustChange == false
+        && operatorDoc().version == claim('opv');
     }
 
     function isMember(eid) {

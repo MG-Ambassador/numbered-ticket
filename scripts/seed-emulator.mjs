@@ -7,11 +7,11 @@
 // - 学生枠 5 つ（すべて担当なし＝準備中）と教員相談の枠
 // - 開場時刻は今の1時間前、閉場時刻は今の6時間後
 // - --reset で Firestore の中身を全部消してから作る
-// - 管理者 admin@example.com（パスワード dev-admin-password）。初回設定（initial クレーム）なしで作る
+// - 運営アカウント admin（開発者）・owner・faculty・staff。パスワードは dev-operator-password（仮パスワードではない）
 // 本番のイベント作成は管理画面（adminApi の createEvent）で行う。ここでは board も含めて直接書く。
 import { initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { hashPassword } from '../functions/src/core/password.ts';
 
 const PROJECT_ID = 'demo-numbered-ticket';
 process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080';
@@ -115,14 +115,21 @@ board.faculty = preparing('faculty', 40);
 batch.set(db.doc(`events/${EID}/board/public`), { slots: board, paused: false, updatedAt: ts });
 await batch.commit();
 
-const ADMIN_EMAIL = 'admin@example.com';
-const auth = getAuth();
-const admin = await auth.getUserByEmail(ADMIN_EMAIL).catch(() => auth.createUser({ email: ADMIN_EMAIL, password: 'dev-admin-password', emailVerified: true }));
-await auth.setCustomUserClaims(admin.uid, { admin: true });
+// 運営アカウント（管理者）。ロールごとに1つ。パスワードはどれも dev-operator-password（仮パスワードではない）
+const OPERATOR_PASSWORD = 'dev-operator-password';
+const passwordHash = await hashPassword(OPERATOR_PASSWORD);
+for (const [loginId, role, displayName] of [
+  ['admin', 'developer', '開発者'],
+  ['owner', 'owner', '責任者'],
+  ['faculty', 'faculty', '教員'],
+  ['staff', 'staff', 'スタッフ'],
+]) {
+  await db.doc(`operators/${loginId}`).set({ loginId, displayName, role, passwordHash, active: true, mustChange: false, version: 1, createdAt: ts, updatedAt: ts });
+}
 
 console.log(`イベント ${EID} を作りました（${state}）`);
 console.log('  入場コード   038-4712   → http://localhost:5173/#code=0384712');
 console.log('  スタッフ                 → http://localhost:5173/staff');
 console.log('    教員（共通）     0384-7125');
 STUDENTS.forEach((p, i) => console.log(`    学生 A-${i + 1} ${p.nickname.padEnd(4, '　')} ${SLOT_CODES[i].slice(0, 4)}-${SLOT_CODES[i].slice(4)}`));
-console.log('  管理者 admin@example.com / dev-admin-password → http://localhost:5173/admin');
+console.log('  管理者 運営ID admin（開発者）・owner（責任者）・faculty（教員）・staff（スタッフ） / dev-operator-password → http://localhost:5173/admin');

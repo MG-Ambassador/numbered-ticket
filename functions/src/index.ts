@@ -12,6 +12,7 @@ import { REGION, ROLES, type Role } from '@nt/shared';
 import { isAnonymousSignUp } from './core/auth.js';
 import { clientIp, type Caller, type Deps } from './core/context.js';
 import * as admin from './core/admin.js';
+import * as operators from './core/operators.js';
 import { tick } from './core/scheduler.js';
 import * as staff from './core/staff.js';
 import * as visitor from './core/visitor.js';
@@ -57,7 +58,9 @@ function callerOf(req: CallableRequest): Caller | null {
     eid: typeof t.eid === 'string' ? t.eid : null,
     role,
     admin: t.admin === true,
-    secondFactor: t.firebase?.sign_in_second_factor ?? null,
+    opId: typeof t.opId === 'string' ? t.opId : null,
+    opVersion: typeof t.opv === 'number' ? t.opv : null,
+    authTime: typeof t.auth_time === 'number' ? t.auth_time : null,
     ip: clientIp(req.rawRequest.headers['x-forwarded-for']),
   };
 }
@@ -102,6 +105,8 @@ export const setQueueLimit = callable(staff.setQueueLimit);
 
 /** A-01〜A-07。op で振り分ける（shared の AdminRequest） */
 export const adminApi = callable(admin.admin);
+/** 運営ID＋パスワードのログイン。カスタムトークンを返す（未ログインで呼べる） */
+export const operatorLogin = callable(operators.operatorLogin, { secret: true });
 
 // ---- 定期処理（3.4） -----------------------------------------------------------
 

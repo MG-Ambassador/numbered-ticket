@@ -1,10 +1,11 @@
 // 管理画面の枠組み: イベントの選択とタブ（当日・設定・コード・枠・統計）
 import { useEffect, useRef, useState } from 'react';
 import { collection, orderBy, query } from 'firebase/firestore';
-import type { EventDoc, EventState } from '@nt/shared';
+import { ROLE_LABELS, type EventDoc, type EventState, type Permission } from '@nt/shared';
 import { useQuery } from '../lib/hooks';
 import { Loading, Notice } from '../ui';
 import { Codes } from './Codes';
+import { OperatorManager } from './OperatorManager';
 import { EventForm } from './EventForm';
 import type { AdminSession } from './session';
 import { SlotsAdmin } from './SlotsAdmin';
@@ -19,14 +20,16 @@ export const EVENT_STATE_LABELS: Record<EventState, string> = {
   purged: '削除済み',
 };
 
-const TABS = [
-  { id: 'today', label: '当日' },
-  { id: 'settings', label: 'イベント設定' },
-  { id: 'codes', label: 'コード' },
-  { id: 'slots', label: '枠' },
-  { id: 'stats', label: '統計' },
-] as const;
-type Tab = (typeof TABS)[number]['id'];
+/** 項目ごとの必要な権限（shared の roles.ts）。権限のない項目は出さない */
+const ALL_TABS: { id: string; label: string; need: Permission }[] = [
+  { id: 'today', label: '当日', need: 'event.view' },
+  { id: 'settings', label: 'イベント設定', need: 'event.manage' },
+  { id: 'codes', label: 'コード', need: 'codes.manage' },
+  { id: 'slots', label: '枠', need: 'event.manage' },
+  { id: 'stats', label: '統計', need: 'event.view' },
+  { id: 'accounts', label: 'アカウント', need: 'accounts.manage' },
+];
+type Tab = 'today' | 'settings' | 'codes' | 'slots' | 'stats' | 'accounts';
 
 const EID_KEY = 'nt.admin.eid';
 
@@ -45,6 +48,7 @@ export function Console({ session, onSignOut }: { session: AdminSession; onSignO
   });
   const [tab, setTab] = useState<Tab>('today');
   const [creating, setCreating] = useState(false);
+  const tabs = ALL_TABS.filter((t) => session.can(t.need));
   const logged = useRef(new Set<string>());
 
   const list = events.status === 'ok' ? events.data : [];
@@ -72,7 +76,7 @@ export function Console({ session, onSignOut }: { session: AdminSession; onSignO
       <div className="between" style={{ flexWrap: 'wrap' }}>
         <span className="eyebrow">管理者 · ADMIN</span>
         <span className="row small">
-          {session.email}
+          {session.identity.displayName}（{ROLE_LABELS[session.identity.role]}）
           <button className="quiet" onClick={onSignOut}>
             ログアウト
           </button>
@@ -100,13 +104,26 @@ export function Console({ session, onSignOut }: { session: AdminSession; onSignO
               </option>
             ))}
           </select>
-          <button className="btn2" onClick={() => setCreating(true)}>
-            新しいイベントを作る
-          </button>
+          {session.can('event.manage') && (
+            <button className="btn2" onClick={() => setCreating(true)}>
+              新しいイベントを作る
+            </button>
+          )}
         </div>
       )}
 
-      {creating ? (
+      {tab === 'accounts' && session.can('accounts.manage') ? (
+        <>
+          <div className="seg" role="tablist" aria-label="管理の項目" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`, borderRadius: 12 }}>
+            {tabs.map((t) => (
+              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id as Tab)} style={{ borderRadius: 10, minHeight: 44 }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <OperatorManager session={session} />
+        </>
+      ) : creating && session.can('event.manage') ? (
         <section className="card pad">
           <h1 className="t2">新しいイベント</h1>
           <p className="small p">作ると、入場コード・スタッフコードと教員相談の枠ができます。学生枠は「枠」のタブで登録します。</p>
@@ -114,9 +131,9 @@ export function Console({ session, onSignOut }: { session: AdminSession; onSignO
         </section>
       ) : current ? (
         <>
-          <div className="seg" role="tablist" aria-label="管理の項目" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`, borderRadius: 12 }}>
-            {TABS.map((t) => (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} style={{ borderRadius: 10, minHeight: 44 }}>
+          <div className="seg" role="tablist" aria-label="管理の項目" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`, borderRadius: 12 }}>
+            {tabs.map((t) => (
+              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id as Tab)} style={{ borderRadius: 10, minHeight: 44 }}>
                 {t.label}
               </button>
             ))}

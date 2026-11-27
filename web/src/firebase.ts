@@ -1,6 +1,6 @@
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
-import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';
+import { browserSessionPersistence, connectAuthEmulator, getAuth, initializeAuth, type Auth } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore, initializeFirestore, memoryLocalCache, type Firestore } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from 'firebase/storage';
@@ -48,7 +48,8 @@ export function clients(surface: Surface): Clients {
   if (!existing && !useEmulator && appCheckSiteKey) {
     initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey), isTokenAutoRefreshEnabled: true });
   }
-  const auth = getAuth(app);
+  // 管理者のログインは、タブを閉じると消える（質問箱の sessionStorage と同じ）。ほかの画面は従来どおり
+  const auth = surface === 'admin' && !existing ? initializeAuth(app, { persistence: browserSessionPersistence }) : getAuth(app);
   // 設計書 4章「SDK はメモリキャッシュのみ」
   const db = existing ? getFirestore(app) : initializeFirestore(app, { localCache: memoryLocalCache() });
   const functions = getFunctions(app, REGION);

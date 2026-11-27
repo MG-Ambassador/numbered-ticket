@@ -37,6 +37,7 @@ import {
   db,
   expectReason,
   makeDeps,
+  seedOperator,
   read,
   seedEvent,
   seedStaff,
@@ -69,21 +70,43 @@ async function logs(eid: string): Promise<AuditLogDoc[]> {
 
 beforeEach(async () => {
   await clearFirestore();
+  await seedOperator();
 });
 
 // ---------------------------------------------------------------------------
 
 describe('A-01 管理者の認証', () => {
-  it('admin クレーム＋パスワードのログインだけが呼べる（TOTP は不要）', async () => {
-    await expectReason(admin(deps, { ...ADMIN, provider: 'anonymous' }, { op: 'dashboard', eid: 'e1' }), 'forbidden');
-    await expectReason(admin(deps, { ...ADMIN, admin: false }, { op: 'dashboard', eid: 'e1' }), 'forbidden');
-    await expectReason(admin(deps, visitorCaller('v'), { op: 'dashboard', eid: 'e1' }), 'forbidden');
-    await expectReason(admin(deps, staffCaller('s', 'faculty'), { op: 'dashboard', eid: 'e1' }), 'forbidden');
+  it('運営アカウントのログイン（カスタムトークン）だけが呼べる', async () => {
+    for (const caller of [
+      { ...ADMIN, provider: 'password' },
+      { ...ADMIN, provider: 'anonymous' },
+      { ...ADMIN, admin: false },
+      { ...ADMIN, opId: null },
+      { ...ADMIN, opVersion: null },
+      { ...ADMIN, authTime: null },
+      visitorCaller('v'),
+      staffCaller('s', 'faculty'),
+    ]) {
+      await expectReason(admin(deps, caller, { op: 'dashboard', eid: 'e1' }), 'forbidden');
+    }
     await expectReason(admin(deps, null, { op: 'dashboard', eid: 'e1' }), 'forbidden');
-    // TOTP の有無にかかわらず呼べる
     await seedEvent();
     await call({ op: 'recordLogin', eid: 'e1' });
-    await admin(deps, { ...ADMIN, secondFactor: 'totp' }, { op: 'recordLogin', eid: 'e1' });
+  });
+
+  it('ログインから8時間を過ぎたトークン・登録のない ID・停止・古い version は sessionExpired', async () => {
+    await seedOperator('off', { active: false });
+    await seedOperator('gone-soon');
+    const nineHoursAgo = Math.floor(NOW.getTime() / 1000) - 9 * 3600;
+    for (const caller of [
+      { ...ADMIN, authTime: nineHoursAgo },
+      adminCaller('nobody'),
+      adminCaller('off'),
+      { ...ADMIN, opVersion: 0 },
+      { ...ADMIN, opVersion: 2 },
+    ]) {
+      await expectReason(admin(deps, caller, { op: 'me' }), 'sessionExpired');
+    }
   });
 
   it('ログインを auditLog に残す。知らない op は拒否', async () => {
@@ -91,14 +114,7 @@ describe('A-01 管理者の認証', () => {
     await call({ op: 'recordLogin', eid: 'e1' });
     expect((await logs('e1')).map((l) => l.action)).toEqual(['admin.login']);
     await expectReason(call({ op: 'nope' } as never), 'invalidInput');
-  });
-
-  it('初回設定が終わると initial クレームが外れる（TOTP は不要）', async () => {
-    const uid = `adm-${Date.now()}`;
-    await auth.createUser({ uid, email: `${uid}@example.com`, password: 'abcdefghijklmn', emailVerified: true });
-    await auth.setCustomUserClaims(uid, { admin: true, initial: true });
-    await admin(deps, adminCaller(uid), { op: 'completeSetup' });
-    expect((await auth.getUser(uid)).customClaims).toEqual({ admin: true });
+    await expectReason(call(null as never), 'invalidInput');
   });
 });
 
