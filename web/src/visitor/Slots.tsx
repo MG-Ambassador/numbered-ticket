@@ -145,7 +145,7 @@ export function Slots({ ctx }: { ctx: VisitorContext }) {
           <div className="list">
             {shown.map((s) => {
               const bs = b.slots[s.id];
-              return bs ? <StudentTile key={s.id} ctx={ctx} slot={s} b={bs} onPick={() => pick(s.id)} /> : null;
+              return bs ? <StudentTile key={s.id} slot={s} b={bs} onPick={() => pick(s.id)} /> : null;
             })}
           </div>
           <p className="small p center">{filters.length ? `選んだテーマのどれかに当てはまる相談員（${shown.length}名）` : `学生相談 ${students.length}枠`}</p>
@@ -168,13 +168,13 @@ export function Slots({ ctx }: { ctx: VisitorContext }) {
   );
 }
 
-function StudentTile({ ctx, slot, b, onPick }: { ctx: VisitorContext; slot: StudentSlotDoc & { id: string }; b: BoardSlot; onPick: () => void }) {
+function StudentTile({ slot, b, onPick }: { slot: StudentSlotDoc & { id: string }; b: BoardSlot; onPick: () => void }) {
   const off = b.status === 'paused' || b.status === 'preparing';
   const w = b.waitingNumbers.length;
   const p = slot.profile;
   return (
     <button className="card tile" onClick={onPick} disabled={off}>
-      <Avatar storage={ctx.c.storage} path={p.avatarPath} name={p.nickname} off={off} />
+      <Avatar name={p.nickname} off={off} />
       <span className="tile-body">
         <span className="between">
           <span className="eyebrow">学生相談{slot.location ? ` ${slot.location}` : ''}</span>
@@ -304,7 +304,7 @@ function IssueSheet({ ctx, slot, b, onClose }: { ctx: VisitorContext; slot: Slot
           </div>
         ) : (
           <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
-            <Avatar storage={c.storage} path={slot.profile.avatarPath} name={slot.profile.nickname} />
+            <Avatar name={slot.profile.nickname} />
             <div className="col grow" style={{ gap: 2 }}>
               <span className="eyebrow">学生相談{slot.location ? ` ${slot.location}` : ''} · STUDENT</span>
               <span className="hl" id="sheet-title">

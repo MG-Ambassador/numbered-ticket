@@ -1,4 +1,4 @@
-// A-04 枠の登録（CSV 一括取込・個別編集・画像・削除）と教員相談の紹介文
+// A-04 枠の登録（CSV 一括取込・個別編集・削除）と教員相談の紹介文
 import { useState, type FormEvent } from 'react';
 import { collection, orderBy, query } from 'firebase/firestore';
 import {
@@ -12,9 +12,9 @@ import {
   type StudentSlotDoc,
   type StudentSlotInput,
 } from '@nt/shared';
-import { ApiError, errorMessage, toApiError } from '../lib/api';
+import { errorMessage, toApiError } from '../lib/api';
 import { useQuery } from '../lib/hooks';
-import { Avatar, Notice } from '../ui';
+import { Notice } from '../ui';
 import type { AdminEvent } from './Console';
 import { useConfirm } from './Confirm';
 import type { AdminSession } from './session';
@@ -22,9 +22,6 @@ import type { AdminSession } from './session';
 /** functions/src/core/slotInput.ts の LIMITS と同じ（入力欄の上限に使う。確かめるのは関数側） */
 const LIMITS = { nickname: 20, department: 40, bio: 200, tags: 5, location: 8, facultyTitle: 40, facultyDescription: 400 };
 const CSV_HEADER = 'id,nickname,department,bio,tags,location,order';
-/** 画像は縮小してから送る（関数側の上限は 512KB） */
-const AVATAR_PX = 400;
-const AVATAR_MAX_BYTES = 512 * 1024;
 
 type Student = StudentSlotDoc & { id: string };
 
@@ -48,13 +45,6 @@ export function SlotsAdmin({ session, event }: { session: AdminSession; event: A
     }
   }
 
-  async function upload(slot: Student, file: File) {
-    await act(async () => {
-      const { contentType, dataBase64 } = await shrinkImage(file);
-      await session.api({ op: 'uploadAvatar', eid, slotId: slot.id, contentType, dataBase64 });
-    }, `${slot.profile.nickname} の画像を登録しました。`);
-  }
-
   return (
     <>
       {element}
@@ -75,7 +65,6 @@ export function SlotsAdmin({ session, event }: { session: AdminSession; event: A
           <table className="table">
             <thead>
               <tr>
-                <th>画像</th>
                 <th>位置</th>
                 <th>ニックネーム・所属</th>
                 <th>タグ</th>
@@ -86,21 +75,6 @@ export function SlotsAdmin({ session, event }: { session: AdminSession; event: A
             <tbody>
               {students.map((s) => (
                 <tr key={s.id}>
-                  <td>
-                    <label style={{ cursor: 'pointer' }} title="画像を選ぶ">
-                      <Avatar storage={session.storage} path={s.profile.avatarPath} name={s.profile.nickname} />
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        hidden
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          e.target.value = '';
-                          if (f) void upload(s, f);
-                        }}
-                      />
-                    </label>
-                  </td>
                   <td>{s.location ?? '—'}</td>
                   <td>
                     <b style={{ fontWeight: 500 }}>{s.profile.nickname}</b>
@@ -120,7 +94,7 @@ export function SlotsAdmin({ session, event }: { session: AdminSession; event: A
                         onClick={() =>
                           confirm({
                             title: `${s.profile.nickname} の枠を消しますか`,
-                            body: '並んでいる方や担当のいる枠は消せません。プロフィール画像も消えます。',
+                            body: '並んでいる方や担当のいる枠は消せません。',
                             confirmLabel: '消す',
                             danger: true,
                             run: () => act(() => session.api({ op: 'deleteSlot', eid, slotId: s.id }), '枠を消しました。'),
@@ -136,7 +110,6 @@ export function SlotsAdmin({ session, event }: { session: AdminSession; event: A
             </tbody>
           </table>
         </div>
-        <p className="small p">画像の丸をクリックすると画像を選べます（JPEG・PNG・WebP。{AVATAR_PX}px に縮小して送ります）。</p>
       </section>
 
       <CsvImport session={session} eid={eid} students={students} />
@@ -197,7 +170,7 @@ function SlotEditor({ session, eid, slot, nextOrder, onClose, onSaved }: { sessi
     setError(null);
     try {
       await session.api<ImportSlotsResponse>({ op: 'upsertSlot', eid, slot: input });
-      onSaved(slot ? '保存しました。' : '枠を足しました。画像は一覧の丸をクリックして登録できます。');
+      onSaved(slot ? '保存しました。' : '枠を足しました。');
     } catch (err) {
       const a = toApiError(err);
       setError({ text: a.message, rows: a.details?.rows });
@@ -298,7 +271,7 @@ function CsvImport({ session, eid, students }: { session: AdminSession; eid: str
     <section className="card pad">
       <h2 className="t2">CSV でまとめて取り込む</h2>
       <p className="small p">
-        1行目は <code>{CSV_HEADER}</code>。<code>id</code> が空の行は新しい枠、ID があれば既存の枠を直します（担当・画像・上限・停止はそのまま）。タグは空白・読点・セミコロンで区切ります。1回 50 行まで。
+        1行目は <code>{CSV_HEADER}</code>。<code>id</code> が空の行は新しい枠、ID があれば既存の枠を直します（担当・上限・停止はそのまま）。タグは空白・読点・セミコロンで区切ります。1回 50 行まで。
       </p>
       <div className="row" style={{ flexWrap: 'wrap' }}>
         <label className="btn2" style={{ cursor: 'pointer' }}>
@@ -390,25 +363,4 @@ function FacultyForm({ session, eid, profile }: { session: AdminSession; eid: st
       </button>
     </form>
   );
-}
-
-/** 長辺 AVATAR_PX に縮小して JPEG にする。512KB を超えたら画質を下げてやり直す */
-async function shrinkImage(file: File): Promise<{ contentType: string; dataBase64: string }> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, AVATAR_PX / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  for (const quality of [0.85, 0.7, 0.5]) {
-    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', quality));
-    if (blob && blob.size <= AVATAR_MAX_BYTES) {
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      let bin = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      return { contentType: 'image/jpeg', dataBase64: btoa(bin) };
-    }
-  }
-  throw new ApiError('画像が大きすぎます。小さい画像を選んでください。', null, null);
 }

@@ -1,4 +1,4 @@
-// Firestore と Storage のパス。ルール（firestore.rules / storage.rules）と同じ形を保つこと。
+// Firestore のパス。ルール（firestore.rules）と同じ形を保つこと。
 
 export const paths = {
   event: (eid: string) => `events/${eid}`,
@@ -20,9 +20,4 @@ export const paths = {
   /** 運営ログインの試行制限（コレクション名 rateLimits の TTL をそのまま使う） */
   authRateLimit: (key: string) => `rateLimits/${key}`,
   stats: (eid: string, date: string) => `events/${eid}/stats/${date}`,
-} as const;
-
-export const storagePaths = {
-  /** プロフィール画像。クライアントは getBlob() で取得し、公開 URL は使わない */
-  avatar: (eid: string, slotId: string) => `events/${eid}/avatars/${slotId}`,
 } as const;

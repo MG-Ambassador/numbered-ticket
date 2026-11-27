@@ -1,9 +1,7 @@
 // P2 定期処理（設計書 3.4）。完了条件（設計書 6章）のうち「スキップ期限」をここで確かめる。
-import { getStorage } from 'firebase-admin/storage';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   paths,
-  storagePaths,
   type AuditLogDoc,
   type BoardDoc,
   type EventDoc,
@@ -196,7 +194,6 @@ describe('閉場＋1時間の削除', () => {
     await staff.callNext(deps, S1);
     await staff.startConsult(deps, S1, { ticketId: a.ticketId });
     await staff.completeConsult(at(NOW.getTime() + 8 * 60_000), S1, { ticketId: a.ticketId });
-    await getStorage().bucket(deps.bucket().name).file(storagePaths.avatar('e1', 's1')).save(Buffer.from('x'));
     await tick(at(CLOSES.getTime()));
     return { visitors, adminUid };
   }
@@ -207,7 +204,7 @@ describe('閉場＋1時間の削除', () => {
     expect((await db.collection(paths.tickets('e1')).get()).size).toBe(2);
   });
 
-  it('統計を保存し、統計以外（整理券・枠・画像・匿名ユーザーなど）を削除して purged にする', async () => {
+  it('統計を保存し、統計以外（整理券・枠・匿名ユーザーなど）を削除して purged にする', async () => {
     const { visitors, adminUid } = await closedEventWithData();
     const res = await tick(at(CLOSES.getTime() + PURGE_AFTER_CLOSE_MS));
     expect(res.purged).toEqual(['e1']);
@@ -219,8 +216,6 @@ describe('閉場＋1時間の削除', () => {
     for (const c of ['tickets', 'queues', 'slots', 'board', 'visitors', 'staff', 'rateLimits', 'auditLog', 'secrets']) {
       expect((await db.collection(`events/e1/${c}`).get()).size, c).toBe(0);
     }
-    const [files] = await getStorage().bucket(deps.bucket().name).getFiles({ prefix: 'events/e1/' });
-    expect(files).toHaveLength(0);
 
     const { users, notFound } = await auth.getUsers([...visitors, 'staff-s1', adminUid].map((uid) => ({ uid })));
     expect(notFound).toHaveLength(3);
@@ -234,8 +229,14 @@ describe('閉場＋1時間の削除', () => {
   it('削除が途中で止まっても、次の回で最後まで進み、統計は最初のものを残す', async () => {
     await closedEventWithData();
     const first = makeDeps(new Date(CLOSES.getTime() + PURGE_AFTER_CLOSE_MS));
-    // 画像の削除で失敗させる（統計の保存と匿名ユーザーの削除までは済む）
-    const broken = { ...first, bucket: () => ({ deleteFiles: async () => Promise.reject(new Error('storage down')) }) as never };
+    // 匿名ユーザーの削除で失敗させる（統計の保存までは済む）
+    const broken = {
+      ...first,
+      auth: {
+        getUsers: first.auth.getUsers.bind(first.auth),
+        deleteUsers: async () => Promise.reject(new Error('auth down')),
+      } as never,
+    };
     expect((await tick(broken)).purged).toEqual([]);
     expect((await read<EventDoc>(paths.event('e1'))).state).toBe('closed');
     const saved = await read<StatsDoc>(paths.stats('e1', '2027-03-20'));

@@ -5,7 +5,6 @@ import {
   DEFAULTS,
   FACULTY_SLOT_ID,
   paths,
-  storagePaths,
   type AdminRequest,
   type AuditAction,
   type AuditLogDoc,
@@ -279,7 +278,7 @@ async function saveStudentSlots(deps: Deps, me: Caller, eid: string, inputs: Stu
       const profileBase = { nickname: s.nickname, department: s.department, bio: s.bio, tags: s.tags };
       if (old) {
         const prev = old.slot as StudentSlotDoc;
-        const slot: StudentSlotDoc = { ...prev, profile: { ...profileBase, avatarPath: prev.profile.avatarPath }, location: s.location, order: s.order, updatedAt: ts };
+        const slot: StudentSlotDoc = { ...prev, profile: profileBase, location: s.location, order: s.order, updatedAt: ts };
         // 占有中なら、案内先のブース（queues.booths）も新しい位置にそろえる
         const queue: QueueDoc = { ...old.queue, booths: old.queue.booths.map((b) => ({ ...b, booth: s.location })) };
         writes.push({ id, slot, queue, created: false });
@@ -290,7 +289,7 @@ async function saveStudentSlots(deps: Deps, me: Caller, eid: string, inputs: Stu
           paused: false,
           queueLimit: DEFAULTS.studentQueueLimit.default,
           updatedAt: ts,
-          profile: { ...profileBase, avatarPath: null },
+          profile: profileBase,
           location: s.location,
           occupant: null,
         };
@@ -355,7 +354,6 @@ async function deleteSlot(deps: Deps, me: Caller, eid: string, slotId: string): 
   if (slotId === FACULTY_SLOT_ID) fail('invalid-argument', 'invalidInput');
   const { db } = deps;
   const now = deps.now();
-  let avatarPath: string | null = null;
   await runTx(db, async (tx) => {
     const event = await getOrFail<EventDoc>(tx, db.doc(paths.event(eid)));
     const slot = await getOrFail<StudentSlotDoc>(tx, db.doc(paths.slot(eid, slotId)));
@@ -365,43 +363,11 @@ async function deleteSlot(deps: Deps, me: Caller, eid: string, slotId: string): 
     }
     const codesRef = db.doc(paths.secretCodes(eid));
     await getOrFail<SecretCodesDoc>(tx, codesRef);
-    avatarPath = slot.profile.avatarPath;
     await rebuildBoard(tx, db, eid, event, now, new Map([[slotId, null]]));
     tx.update(codesRef, new FieldPath('slotCodes', slotId), FieldValue.delete(), 'updatedAt', Timestamp.fromDate(now));
     tx.delete(db.doc(paths.slot(eid, slotId)));
     tx.delete(db.doc(paths.queue(eid, slotId)));
     audit(tx, db, eid, event, me, 'slot.delete', slotId, {}, now);
-  });
-  if (avatarPath) await deps.bucket().file(avatarPath).delete({ ignoreNotFound: true });
-}
-
-const AVATAR_TYPES: Record<string, (b: Buffer) => boolean> = {
-  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
-  'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
-  'image/webp': (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP',
-};
-export const AVATAR_MAX_BYTES = 512 * 1024;
-
-/** プロフィール画像。画面で縮小してから送る前提で 512KB まで。中身の形式も確かめる */
-async function uploadAvatar(deps: Deps, me: Caller, eid: string, slotId: string, contentType: unknown, dataBase64: unknown): Promise<void> {
-  const check = typeof contentType === 'string' ? AVATAR_TYPES[contentType] : undefined;
-  if (!check || typeof dataBase64 !== 'string' || dataBase64.length > Math.ceil((AVATAR_MAX_BYTES * 4) / 3) + 4) fail('invalid-argument', 'invalidInput');
-  const data = Buffer.from(dataBase64, 'base64');
-  if (data.length === 0 || data.length > AVATAR_MAX_BYTES || !check(data)) fail('invalid-argument', 'invalidInput');
-  const { db } = deps;
-  const now = deps.now();
-  const path = storagePaths.avatar(eid, slotId);
-
-  const slot = (await db.doc(paths.slot(eid, slotId)).get()).data() as SlotDoc | undefined;
-  if (!slot) fail('not-found', 'notFound');
-  if (slot.kind !== 'student') fail('invalid-argument', 'invalidInput');
-  await deps.bucket().file(path).save(data, { contentType: contentType as string, resumable: false, metadata: { cacheControl: 'private, max-age=300' } });
-
-  await runTx(db, async (tx) => {
-    const event = await getOrFail<EventDoc>(tx, db.doc(paths.event(eid)));
-    await getOrFail<StudentSlotDoc>(tx, db.doc(paths.slot(eid, slotId)));
-    tx.update(db.doc(paths.slot(eid, slotId)), { 'profile.avatarPath': path, updatedAt: Timestamp.fromDate(now) });
-    audit(tx, db, eid, event, me, 'slot.update', slotId, { avatar: true }, now);
   });
 }
 
@@ -582,8 +548,6 @@ export async function admin(deps: Deps, caller: Caller | null, req: AdminRequest
       return updateFacultyProfile(deps, me, eidOf(req), req.profile);
     case 'deleteSlot':
       return deleteSlot(deps, me, eidOf(req), slotIdOf(req.slotId));
-    case 'uploadAvatar':
-      return uploadAvatar(deps, me, eidOf(req), slotIdOf(req.slotId), req.contentType, req.dataBase64);
     case 'openEvent': {
       const eid = eidOf(req);
       if (await openEvent(deps.db, eid, deps.now())) await withAudit(deps, me, eid, 'event.open');

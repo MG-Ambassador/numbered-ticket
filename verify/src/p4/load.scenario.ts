@@ -215,7 +215,7 @@ async function seed(): Promise<void> {
       paused: false,
       queueLimit: DEFAULTS.studentQueueLimit.default,
       updatedAt: ts,
-      profile: { nickname: `学生${i + 1}`, department: '負荷テスト', bio: '', tags: [], avatarPath: null },
+      profile: { nickname: `学生${i + 1}`, department: '負荷テスト', bio: '', tags: [] },
       location: `A-${i + 1}`,
       occupant: null,
     };

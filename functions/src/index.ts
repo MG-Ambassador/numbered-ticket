@@ -2,7 +2,6 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import { defineBoolean, defineInt, defineSecret } from 'firebase-functions/params';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import { HttpsError, onCall, type CallableRequest } from 'firebase-functions/v2/https';
@@ -45,7 +44,7 @@ function rateLimitSecret(): string {
 }
 
 function deps(): Deps {
-  return { db: getFirestore(), auth: getAuth(), rateLimitSecret, now: () => new Date(), bucket: () => getStorage().bucket() };
+  return { db: getFirestore(), auth: getAuth(), rateLimitSecret, now: () => new Date() };
 }
 
 function callerOf(req: CallableRequest): Caller | null {

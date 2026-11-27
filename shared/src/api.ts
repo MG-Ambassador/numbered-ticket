@@ -144,7 +144,6 @@ export type AdminRequest =
   | { op: 'upsertSlot'; eid: string; slot: StudentSlotInput }
   | { op: 'updateFacultyProfile'; eid: string; profile: FacultyProfile }
   | { op: 'deleteSlot'; eid: string; slotId: string }
-  | { op: 'uploadAvatar'; eid: string; slotId: string; contentType: string; dataBase64: string }
   /** A-05 */
   | { op: 'openEvent'; eid: string }
   | { op: 'closeEvent'; eid: string }
