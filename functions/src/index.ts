@@ -17,7 +17,9 @@ import * as staff from './core/staff.js';
 import * as visitor from './core/visitor.js';
 
 initializeApp();
-setGlobalOptions({ region: REGION, maxInstances: 10 });
+// 20 関数すべてが既定の 1 vCPU だと Cloud Run のリージョン CPU クォータ（20 vCPU）に当たるため、
+// 通常関数は 0.25 vCPU（concurrency 1）にし、負荷の高い発券・呼出（hot）だけ 1 vCPU（concurrency 80）にする。
+setGlobalOptions({ region: REGION, maxInstances: 10, cpu: 0.25, concurrency: 1 });
 
 /** IP の HMAC の鍵（V-01）。Secret Manager に置く。Emulator では functions/.secret.local か既定値 */
 const RATE_LIMIT_SECRET = defineSecret('RATE_LIMIT_SECRET');
@@ -71,7 +73,7 @@ function callable<Req, Res>(handler: Handler<Req, Res>, opts: { secret?: boolean
     {
       secrets: opts.secret ? [RATE_LIMIT_SECRET] : [],
       enforceAppCheck: ENFORCE_APP_CHECK,
-      ...(opts.hot ? { minInstances: HOT_INSTANCES } : {}),
+      ...(opts.hot ? { cpu: 1, concurrency: 80, minInstances: HOT_INSTANCES } : {}),
     },
     (req) =>
       handler(deps(), callerOf(req), req.data),
