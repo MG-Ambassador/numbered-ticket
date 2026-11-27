@@ -93,7 +93,7 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 | op | 内容 |
 | --- | --- |
 | `recordLogin`（A-01） | ログインを auditLog に記録 |
-| `createEvent` / `updateEvent`（A-02） | 作成時にコード2つ・教員相談の枠と列・board を一緒に作る。閉場後は変更不可。開催は24時間以内、閉場は今より後（年の入力違いで意図せず開場するのを防ぐ）。開場中に開場時刻を未来へ変えると、入場・整理券がなければ開場前に戻す（あれば `eventStarted`） |
+| `createEvent` / `updateEvent`（A-02） | 作成時にコード2つ・教員相談の枠と列・board を一緒に作る。閉場後は変更不可。開催の長さや閉場が過去かどうかは検証しない（2026-11-27 に外した。閉場が過去なら次の定期処理ですぐ閉場・削除される。開場より後であればよい）（以前は年の入力違いで意図せず開場するのを防ぐ）。開場中に開場時刻を未来へ変えると、入場・整理券がなければ開場前に戻す（あれば `eventStarted`） |
 | `viewCodes` / `reissueCode`（A-03） | どちらも auditLog に残す。再発行しても、入場済み・ログイン済みの端末はそのまま使える |
 | `importSlots` / `upsertSlot` / `updateFacultyProfile` / `deleteSlot` / `uploadAvatar`（A-04） | 下の「枠の登録」 |
 | `openEvent` / `closeEvent` / `setGlobalPaused` / `updateSlotSettings` / `forceRelease`（A-05） | 下の「当日の操作」 |

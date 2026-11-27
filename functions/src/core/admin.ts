@@ -91,8 +91,6 @@ export function validateSettings(s: EventSettings) {
   const opensAt = parseTime(s.opensAt);
   const closesAt = parseTime(s.closesAt);
   if (closesAt.toMillis() <= opensAt.toMillis()) fail('invalid-argument', 'invalidInput');
-  // 開催は1日のうちの数時間。年・日付の入力違い（2025 と 2026 など）で、意図せず開場するのを防ぐ
-  if (closesAt.toMillis() - opensAt.toMillis() > DEFAULTS.maxEventHours * 3_600_000) fail('invalid-argument', 'invalidInput');
   const consultMinutes = intIn(s.consultMinutes, 1, 60);
   const skipReturnMinutes = intIn(s.skipReturnMinutes, 1, 60);
   if (!Array.isArray(s.themes) || s.themes.length === 0 || s.themes.length > 20) fail('invalid-argument', 'invalidInput');
@@ -112,8 +110,6 @@ async function createEvent(deps: Deps, me: Caller, settings: EventSettings): Pro
   const { db } = deps;
   const now = deps.now();
   const v = validateSettings(settings ?? ({} as EventSettings));
-  // 閉場が過ぎていると、次の定期処理ですぐ閉場・削除される
-  if (v.closesAt.toMillis() <= now.getTime()) fail('invalid-argument', 'invalidInput');
   const ts = Timestamp.fromDate(now);
   const ref = db.collection('events').doc();
   const event: EventDoc = { ...v, state: 'scheduled', nextTicketNumber: DEFAULTS.firstTicketNumber, paused: false, updatedAt: ts };
@@ -161,8 +157,6 @@ async function updateEvent(deps: Deps, me: Caller, eid: string, patch: Partial<E
       themes: event.themes,
     };
     const v = validateSettings({ ...current, ...(patch ?? {}) });
-    // 閉場を過去にすると、次の定期処理ですぐ閉場・削除される（早く閉じるときは closeEvent）
-    if (v.closesAt.toMillis() <= now.getTime()) fail('invalid-argument', 'invalidInput');
     // 開場中に開場時刻を未来へ変えたら開場前に戻す（入力違いで開場してしまったときの戻し方）。
     // 入場した方・整理券があるときは、締め出すことになるので断る
     let state = event.state;
