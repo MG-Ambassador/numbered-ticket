@@ -95,7 +95,7 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 | `recordLogin`（A-01） | ログインを auditLog に記録 |
 | `createEvent` / `updateEvent`（A-02） | 作成時にコード2つ・教員相談の枠と列・board を一緒に作る。閉場後は変更不可。開催の長さや閉場が過去かどうかは検証しない（2026-11-27 に外した。閉場が過去なら次の定期処理ですぐ閉場・削除される。開場より後であればよい）（以前は年の入力違いで意図せず開場するのを防ぐ）。開場中に開場時刻を未来へ変えると、入場・整理券がなければ開場前に戻す（あれば `eventStarted`） |
 | `viewCodes` / `reissueCode`（A-03） | どちらも auditLog に残す。再発行しても、入場済み・ログイン済みの端末はそのまま使える |
-| `importSlots` / `upsertSlot` / `updateFacultyProfile` / `deleteSlot` / `uploadAvatar`（A-04） | 下の「枠の登録」 |
+| `importSlots` / `upsertSlot` / `updateFacultyProfile` / `deleteSlot`（A-04） | 下の「枠の登録」 |
 | `openEvent` / `closeEvent` / `setGlobalPaused` / `updateSlotSettings` / `forceRelease`（A-05） | 下の「当日の操作」 |
 | `dashboard` / `previewStats`（A-06・A-07） | 直近10分の発券数とコードの失敗数、警告。統計は当日の整理券から計算するだけ（保存は定期処理） |
 
@@ -103,10 +103,10 @@ openssl rand -base64 32 | firebase functions:secrets:set RATE_LIMIT_SECRET --pro
 
 **枠の登録（A-04）**:
 
-- CSV の見出しは `id,nickname,department,bio,tags,location,order`。`id` が空なら新しい枠、あれば既存の枠を直す（占有・画像・上限・停止はそのまま。位置を変えると占有中の学生の案内先も変わる）。タグは空白・読点・セミコロンで区切る。1回 50 行まで
+- CSV の見出しは `id,nickname,department,bio,tags,location,order`。`id` が空なら新しい枠、あれば既存の枠を直す（占有・上限・停止はそのまま。位置を変えると占有中の学生の案内先も変わる）。タグは空白・読点・セミコロンで区切る。1回 50 行まで
 - 1行でも誤りがあれば何も書かず、`details.rows` に行と列を返す
 - URL・SNS の ID は全角を半角にしてから判定する（`https:`、`www.`、`xxx.com` などのドメイン、`@xxx`、「インスタ:」「LINE ID」など）
-- 画像は 512KB まで。`Content-Type` だけでなく先頭のバイトで JPEG / PNG / WebP か確かめる。画面で縮小してから送る（P3）
+- プロフィール画像の機能は 2026-11-27 に廃止した（`uploadAvatar`・Storage への保存はない。アバターはニックネームの頭文字）
 - 削除は、並んでいる方・担当がいない枠だけ
 
 **当日の操作（A-05）**:
@@ -161,9 +161,8 @@ node scripts/create-operator.mjs --project oc-ticket-2027 --login-id <運営ID> 
 
 1. 統計を `stats/{開催日（JST）}` に保存する（すでにあれば上書きしない）
 2. 入場記録・スタッフの記録にある uid のうち、匿名ユーザーだけを Auth から削除する（メール・電話・外部 IdP・admin クレームのあるユーザーは消さない）
-3. Storage のプロフィール画像（`events/{eid}/avatars/`）を削除する
-4. `stats` 以外のサブコレクション（tickets, queues, slots, board, visitors, staff, rateLimits, auditLog, secrets）を `recursiveDelete` で消す
-5. 最後にイベントを `purged` にする。途中で失敗しても `closed` のままなので、次の回に最初から進み直す
+3. `stats` 以外のサブコレクション（tickets, queues, slots, board, visitors, staff, rateLimits, auditLog, secrets）を `recursiveDelete` で消す
+4. 最後にイベントを `purged` にする。途中で失敗しても `closed` のままなので、次の回に最初から進み直す
 
 ## まだ決めていない・あとでやること
 
