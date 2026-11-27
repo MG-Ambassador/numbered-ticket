@@ -88,4 +88,40 @@ jobs:
       - name: firebase deploy
         env:
           ONLY: ${{ github.event.inputs.only || 'hosting,firestore,storage,functions' }}
-        run: firebase deploy --project prod --only "$ONLY" --non-interactive --force
+        run: |
+          set -euo pipefail
+          # 全 20 関数を一度に更新すると Cloud Run のリージョン CPU クォータに当たるため、
+          # bare の "functions" が含まれるときは Hosting・ルールを先にリリースし、関数を 4 本ずつ分割してデプロイする。
+          IFS=',' read -ra TARGETS <<< "$ONLY"
+          OTHER=()
+          HAS_ALL_FUNCTIONS=false
+          for t in "${TARGETS[@]}"; do
+            if [ "$t" = "functions" ]; then
+              HAS_ALL_FUNCTIONS=true
+            elif [ -n "$t" ]; then
+              OTHER+=("$t")
+            fi
+          done
+
+          if [ "$HAS_ALL_FUNCTIONS" = false ]; then
+            firebase deploy --project prod --only "$ONLY" --non-interactive --force
+            exit 0
+          fi
+
+          if [ "${#OTHER[@]}" -gt 0 ]; then
+            OTHER_CSV=$(IFS=','; echo "${OTHER[*]}")
+            firebase deploy --project prod --only "$OTHER_CSV" --non-interactive --force
+          fi
+
+          mapfile -t FUNCS < <(grep -oE '^export const [A-Za-z0-9_]+' functions/src/index.ts | awk '{print "functions:" $3}')
+          BATCH_SIZE=4
+          for ((i = 0; i < ${#FUNCS[@]}; i += BATCH_SIZE)); do
+            BATCH=("${FUNCS[@]:i:BATCH_SIZE}")
+            BATCH_CSV=$(IFS=','; echo "${BATCH[*]}")
+            echo "Deploying batch: $BATCH_CSV"
+            if ! firebase deploy --project prod --only "$BATCH_CSV" --non-interactive --force; then
+              echo "Batch failed, waiting 30s before retry: $BATCH_CSV"
+              sleep 30
+              firebase deploy --project prod --only "$BATCH_CSV" --non-interactive --force
+            fi
+          done
