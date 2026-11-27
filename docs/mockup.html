@@ -152,6 +152,8 @@ legend { padding: 0; margin-bottom: 4px; }
 .ctl .sw[aria-checked="true"] span { background: var(--bg); border-color: var(--bg); }
 .panel { background: var(--p-raised); border: 1px solid var(--p-rule); border-radius: 2px; display: flex; flex-direction: column; }
 .panel > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 16px; min-height: 56px; }
+.panel > .sound-help { justify-content: flex-start; flex-wrap: wrap; gap: 8px; padding: 0 16px 12px; min-height: auto; }
+.btn2.sm { height: 40px; padding: 0 14px; }
 .panel > hr { margin: 0; border: 0; border-top: 1px solid var(--p-rule); }
 
 /* 整理券 */
@@ -307,7 +309,7 @@ legend { padding: 0; margin-bottom: 4px; }
       tickets: [], nextNo: 104, order: 0,
       stage: "gate", code: "", codeErr: "", attempts: 0, lockUntil: 0, checking: false,
       tab: "student", filters: [], sheet: null, form: { grade: null, themes: [], note: "" },
-      my: null, confirmCancel: false, callAck: false, wake: false, wakeNote: "", sound: false, msg: "", lastMyStatus: null, sealUntil: 0,
+      my: null, confirmCancel: false, callAck: false, wake: false, wakeNote: "", sound: false, soundHelp: "", msg: "", lastMyStatus: null, sealUntil: 0,
       auto: true, staffSlot: "A-5", booth: "B-6", openRow: null, pending: null, view: "visitor"
     };
     var seq = 0;
@@ -406,6 +408,11 @@ legend { padding: 0; margin-bottom: 4px; }
   }
 
   /* ---------- 通知 ---------- */
+  // ブラウザからは端末の音量も消音モードも変えられないので、手順を示してテストの音を鳴らす
+  var SOUND_HELP = {
+    vol: "本体の側面にある音量ボタン（＋）を押して、音を大きくしてください。いまテストの音を鳴らしました。",
+    mute: "iPhone は本体左側の着信/消音スイッチを切り替えてください（オレンジ色が見えると消音中です）。アクションボタンの機種は、コントロールセンターから消音モードを切ってください。Android は音量ボタンを押し、表示されたベルのアイコンでマナーモードを切ってください。いまテストの音を鳴らしました。"
+  };
   function beep() {
     try {
       if (!audio) return;
@@ -553,7 +560,14 @@ legend { padding: 0; margin-bottom: 4px; }
     if (m.status === "waiting" || m.status === "skipped") h += '<div class="notice n-info">' + ic("phone") + "<span>画面を閉じるとお呼び出しが届きません。この画面を開いたままお待ちください。お待ちのあいだ、ほかの企画をご覧いただけます。</span></div>";
     h += '<div class="panel"><div><span class="row">' + ic("phone") + '<span id="lbl-wake">画面を消さない</span></span><button class="sw" role="switch" aria-labelledby="lbl-wake" aria-checked="' + S.wake + '" data-act="wake"><span></span></button></div>';
     if (S.wakeNote) h += '<p class="small p" style="padding:0 16px 10px">' + esc(S.wakeNote) + "</p>";
-    h += '<hr><div><span class="row">' + ic("vol") + '<span id="lbl-sound">音で知らせる</span></span><button class="sw" role="switch" aria-labelledby="lbl-sound" aria-checked="' + S.sound + '" data-act="sound"><span></span></button></div></div>';
+    h += '<hr><div><span class="row">' + ic("vol") + '<span id="lbl-sound">音で知らせる</span></span><button class="sw" role="switch" aria-labelledby="lbl-sound" aria-checked="' + S.sound + '" data-act="sound"><span></span></button></div>';
+    if (S.sound) {
+      h += '<div class="sound-help">';
+      [["vol", "音量を上げる"], ["mute", "消音モードを切る"]].forEach(function (b) { h += '<button class="btn2 sm" data-act="soundHelp" data-id="' + b[0] + '" aria-expanded="' + (S.soundHelp === b[0]) + '" aria-controls="sound-help-text">' + b[1] + "</button>"; });
+      h += "</div>";
+      if (S.soundHelp) h += '<p class="small p" id="sound-help-text" style="padding:0 16px 12px">' + SOUND_HELP[S.soundHelp] + "</p>";
+    }
+    h += "</div>";
     h += '<div class="grow"></div><button class="btn2" data-act="goList">' + ic("users", 16) + "ほかの相談員の様子を見る</button>";
     if (m.status !== "in_progress") h += '<button class="quiet" data-act="cancel">この整理券をキャンセルする</button>';
     return h + "</div>";
@@ -716,6 +730,11 @@ legend { padding: 0; margin-bottom: 4px; }
       case "sound":
         S.sound = !S.sound;
         if (S.sound) { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume && audio.resume(); beep(); } catch (e) {} }
+        else S.soundHelp = "";
+        break;
+      case "soundHelp":
+        S.soundHelp = S.soundHelp === id ? "" : id;
+        if (S.soundHelp) { try { audio && audio.resume && audio.resume(); beep(); } catch (e) {} }
         break;
       case "claim": slotOf(S.staffSlot).preparing = false; break;
       case "lim": var sl = slotOf(S.staffSlot), stp = S.staffSlot === "F" ? 5 : 1, lo = S.staffSlot === "F" ? 10 : 1, hi = S.staffSlot === "F" ? 80 : 10; sl.limit = Math.min(hi, Math.max(lo, sl.limit + Number(id) * stp)); break;
