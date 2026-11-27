@@ -8,6 +8,7 @@ import { Codes } from './Codes';
 import { OperatorManager } from './OperatorManager';
 import { EventForm } from './EventForm';
 import type { AdminSession } from './session';
+import { RuntimeStatusBar } from './RuntimeStatusBar';
 import { SlotsAdmin } from './SlotsAdmin';
 import { Stats } from './Stats';
 import { Today } from './Today';
@@ -82,6 +83,8 @@ export function Console({ session, onSignOut }: { session: AdminSession; onSignO
           </button>
         </span>
       </div>
+
+      <RuntimeStatusBar session={session} />
 
       {events.status === 'loading' && <Loading />}
       {events.status === 'error' && (

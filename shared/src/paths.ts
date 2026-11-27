@@ -19,5 +19,7 @@ export const paths = {
   operatorAudit: 'operatorAudit',
   /** 運営ログインの試行制限（コレクション名 rateLimits の TTL をそのまま使う） */
   authRateLimit: (key: string) => `rateLimits/${key}`,
+  /** 定期処理が書き込む運用状態（常駐台数・本日のDB読み取り回数） */
+  runtimeStatus: 'system/runtimeStatus',
   stats: (eid: string, date: string) => `events/${eid}/stats/${date}`,
 } as const;

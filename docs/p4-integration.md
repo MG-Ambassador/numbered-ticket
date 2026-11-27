@@ -63,7 +63,12 @@ npm run test:load          # Emulator（Firestore・Auth・Functions）で 150 �
 | 変数 | 既定 | 意味 |
 | --- | --- | --- |
 | `ENFORCE_APP_CHECK` | `false` | callable 関数で App Check を強制する |
-| `HOT_INSTANCES` | `0` | `issueTicket`・`callNext` の `minInstances`。開催日・リハーサル・本番の負荷テストの前に `1` にし、終わったら `0` に戻す（待機中も課金される） |
+| `HOT_INSTANCES` | `0` | `issueTicket`・`callNext` のデプロイ時既定の `minInstances`。通常は `scheduledTick` が開場30分前に `1`・閉場後に `0` へ自動切替する（本番の負荷テストなどイベント外で常駐させたい場合のみ手動変更） |
+
+**常駐の自動切替と DB 読み取り回数の表示（`scheduledTick` → `system/runtimeStatus`）**:
+- `scheduledTick` が開場30分前〜閉場のあいだ `issueticket`・`callnext` の `minInstanceCount` を自動で `1` にし、閉場後に `0` へ戻す（15分ごとに再確認するため、開催中のデプロイ上書きも自動修復される）。
+- 5分ごとに Cloud Monitoring（`firestore.googleapis.com/document/read_count`）から本日（JST）の Firestore 読み取り合計を取得し、管理画面の上部に常駐状態とあわせて表示する。
+- 実行サービスアカウント（`${PROJECT_NUMBER}-compute@developer.gserviceaccount.com`）には `scripts/setup-wif.sh` で最小権限（`issueticket` / `callnext` への `roles/run.developer`、自身への `roles/iam.serviceAccountUser`、プロジェクトの `roles/monitoring.viewer`）を付与しておく。
 
 画面は `VITE_APPCHECK_SITE_KEY`（reCAPTCHA Enterprise のサイトキー）があるときだけ App Check を初期化する（`web/src/firebase.ts`）。Emulator では使わない。
 

@@ -75,3 +75,6 @@ export const RATE_LIMITS = {
 
 /** TTL（expireAt）は閉場からこの時間後。閉場＋1時間の削除が漏れた場合の保険 */
 export const TTL_AFTER_CLOSE_HOURS = 2;
+
+/** Firestore の1日あたりの無料読み取り枠（管理画面の目安表示用） */
+export const FIRESTORE_FREE_READS_PER_DAY = 50_000;

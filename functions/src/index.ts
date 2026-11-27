@@ -11,6 +11,7 @@ import { REGION, ROLES, type Role } from '@nt/shared';
 import { isAnonymousSignUp } from './core/auth.js';
 import { clientIp, type Caller, type Deps } from './core/context.js';
 import * as admin from './core/admin.js';
+import { getTodayFirestoreReads, setHotInstances } from './core/gcpOps.js';
 import * as operators from './core/operators.js';
 import { tick } from './core/scheduler.js';
 import * as staff from './core/staff.js';
@@ -46,7 +47,13 @@ function rateLimitSecret(): string {
 }
 
 function deps(): Deps {
-  return { db: getFirestore(), auth: getAuth(), rateLimitSecret, now: () => new Date() };
+  return {
+    db: getFirestore(),
+    auth: getAuth(),
+    rateLimitSecret,
+    now: () => new Date(),
+    ...(isEmulator ? {} : { setHotInstances, getTodayFirestoreReads }),
+  };
 }
 
 function callerOf(req: CallableRequest): Caller | null {
@@ -119,7 +126,9 @@ export const scheduledTick = onSchedule(
   { schedule: 'every 1 minutes', timeZone: 'Asia/Tokyo', retryCount: 0, timeoutSeconds: 300 },
   async () => {
     const res = await tick(deps());
-    if (res.opened.length + res.closed.length + res.purged.length + res.expiredSkipped > 0) console.log('tick', JSON.stringify(res));
+    if (res.opened.length + res.closed.length + res.purged.length + res.expiredSkipped > 0 || res.hotInstances !== null) {
+      console.log('tick', JSON.stringify(res));
+    }
   },
 );
 

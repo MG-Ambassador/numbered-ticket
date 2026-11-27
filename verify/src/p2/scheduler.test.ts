@@ -6,11 +6,18 @@ import {
   type BoardDoc,
   type EventDoc,
   type QueueDoc,
+  type RuntimeStatusDoc,
   type StatsDoc,
   type TicketDoc,
   type VisitorDoc,
 } from '@nt/shared';
-import { PURGE_AFTER_CLOSE_MS, tick } from '../../../functions/src/core/scheduler.js';
+import {
+  HOT_RESYNC_MS,
+  PURGE_AFTER_CLOSE_MS,
+  READS_REFRESH_MS,
+  WARMUP_BEFORE_OPEN_MS,
+  tick,
+} from '../../../functions/src/core/scheduler.js';
 import * as staff from '../../../functions/src/core/staff.js';
 import * as visitor from '../../../functions/src/core/visitor.js';
 import {
@@ -252,6 +259,124 @@ describe('閉場＋1時間の削除', () => {
     await db.doc(paths.event('e1')).update({ opensAt: 'こわれた値' as never });
     const res = await tick(at(OPENS.getTime()));
     expect(res.opened).toEqual(['e2']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('常駐設定の自動切替とDB読み取り回数の記録', () => {
+  function makeOps(reads = 1234) {
+    const hotCalls: (0 | 1)[] = [];
+    let currentHot: 0 | 1 = 0;
+    let readsCalls = 0;
+    const setHotInstances = async (count: 0 | 1) => {
+      hotCalls.push(count);
+      const changed = currentHot !== count;
+      currentHot = count;
+      return changed;
+    };
+    const getTodayFirestoreReads = async () => {
+      readsCalls++;
+      return { today: reads, date: '2027-03-20' };
+    };
+    return {
+      hotCalls,
+      get readsCalls() {
+        return readsCalls;
+      },
+      depsAt: (ms: number) => ({ ...at(ms), setHotInstances, getTodayFirestoreReads }),
+    };
+  }
+
+  it('開場30分前より前は0、開場30分前で1になり、閉場で0に戻る', async () => {
+    await seedEvent({ state: 'scheduled' });
+    const ops = makeOps(500);
+
+    // 開場31分前: まだ0
+    const before = await tick(ops.depsAt(OPENS.getTime() - WARMUP_BEFORE_OPEN_MS - 60_000));
+    expect(before.hotInstances).toBeNull();
+    expect(ops.hotCalls).toEqual([0]);
+    expect((await read<RuntimeStatusDoc>(paths.runtimeStatus)).hotInstances).toMatchObject({ desired: 0, applied: 0 });
+
+    // 開場30分前ちょうど: 1に切り替わる
+    const warmup = await tick(ops.depsAt(OPENS.getTime() - WARMUP_BEFORE_OPEN_MS));
+    expect(warmup.hotInstances).toBe(1);
+    expect(ops.hotCalls).toEqual([0, 1]);
+    expect((await read<RuntimeStatusDoc>(paths.runtimeStatus)).hotInstances).toMatchObject({ desired: 1, applied: 1 });
+
+    // 開場中（1分後）: 同じ1なので API は再呼び出ししない
+    const during = await tick(ops.depsAt(OPENS.getTime() - WARMUP_BEFORE_OPEN_MS + 60_000));
+    expect(during.hotInstances).toBeNull();
+    expect(ops.hotCalls).toEqual([0, 1]);
+
+    // 閉場時刻: 自動閉場と同時に0に戻る
+    const closed = await tick(ops.depsAt(CLOSES.getTime()));
+    expect(closed.closed).toEqual(['e1']);
+    expect(closed.hotInstances).toBe(0);
+    expect(ops.hotCalls).toEqual([0, 1, 0]);
+    expect((await read<RuntimeStatusDoc>(paths.runtimeStatus)).hotInstances).toMatchObject({ desired: 0, applied: 0 });
+  });
+
+  it('複数イベントがあるとき、片方が閉場しても他方が開場中なら1を維持し、両方閉場で0に戻る', async () => {
+    await seedEvent({ eid: 'e1', state: 'open' });
+    await seedEvent({ eid: 'e2', state: 'open' });
+    // e2 は e1 より1時間遅く閉場する
+    const { Timestamp } = await import('firebase-admin/firestore');
+    await db.doc(paths.event('e2')).update({ closesAt: Timestamp.fromMillis(CLOSES.getTime() + 60 * 60_000) });
+
+    const ops = makeOps();
+    await tick(ops.depsAt(OPENS.getTime() + 60_000));
+    expect(ops.hotCalls).toEqual([1]);
+
+    // e1 が閉場しても e2 が開場中なので1のまま（15分以上経過しているため再確認は走るが変更なし）
+    const r1 = await tick(ops.depsAt(CLOSES.getTime()));
+    expect(r1.closed).toEqual(['e1']);
+    expect(r1.hotInstances).toBeNull();
+    expect((await read<RuntimeStatusDoc>(paths.runtimeStatus)).hotInstances).toMatchObject({ desired: 1, applied: 1 });
+
+    // e2 も閉場すると0に戻る
+    const r2 = await tick(ops.depsAt(CLOSES.getTime() + 60 * 60_000));
+    expect(r2.closed).toEqual(['e2']);
+    expect(r2.hotInstances).toBe(0);
+    expect(ops.hotCalls.at(-1)).toBe(0);
+  });
+
+  it('状態が同じでも15分ごとに再確認し、DB読み取り回数は5分ごとに更新する', async () => {
+    await seedEvent({ state: 'open' });
+    const ops = makeOps(12345);
+    const t0 = OPENS.getTime() + 60_000;
+
+    await tick(ops.depsAt(t0));
+    expect(ops.hotCalls).toHaveLength(1);
+    expect(ops.readsCalls).toBe(1);
+    expect((await read<RuntimeStatusDoc>(paths.runtimeStatus)).firestoreReads).toMatchObject({ today: 12345, date: '2027-03-20' });
+
+    // 4分後: どちらもスキップ
+    await tick(ops.depsAt(t0 + READS_REFRESH_MS - 60_000));
+    expect(ops.hotCalls).toHaveLength(1);
+    expect(ops.readsCalls).toBe(1);
+
+    // 5分後: DB読み取りだけ更新
+    await tick(ops.depsAt(t0 + READS_REFRESH_MS));
+    expect(ops.hotCalls).toHaveLength(1);
+    expect(ops.readsCalls).toBe(2);
+
+    // 15分後: 常駐状態も再確認
+    await tick(ops.depsAt(t0 + HOT_RESYNC_MS));
+    expect(ops.hotCalls).toHaveLength(2);
+    expect(ops.readsCalls).toBe(3);
+  });
+
+  it('GCP API が失敗しても、イベントの開場・閉場処理には影響しない', async () => {
+    await seedEvent({ state: 'scheduled' });
+    const failingDeps = {
+      ...at(OPENS.getTime()),
+      setHotInstances: async () => Promise.reject(new Error('run api error')),
+      getTodayFirestoreReads: async () => Promise.reject(new Error('monitoring error')),
+    };
+    const res = await tick(failingDeps);
+    expect(res.opened).toEqual(['e1']);
+    expect(res.hotInstances).toBeNull();
   });
 });
 

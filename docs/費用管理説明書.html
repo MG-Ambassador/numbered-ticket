@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>整理券システム 費用と管理の説明書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* 構成: 職員向け取扱説明書と揃えた1段組の「読む冊子」。章ごとに大きな見出しと図表を置く */
+:root {
+  --bg: #faf8f3;
+  --surface: #ffffff;
+  --sunk: #f1ede4;
+  --ink: #26231f;
+  --ink-soft: #5d574d;
+  --rule: #ddd5c6;
+  --mark: #ecec86;
+  --visitor: #a5481a; --visitor-wash: #fbeadf;
+  --staff: #2f6b4a; --staff-wash: #e3efe7;
+  --admin: #2f5a8a; --admin-wash: #e3ebf5;
+  --warn: #8a5a00; --warn-wash: #f8eed6;
+  --danger: #a8322a; --danger-wash: #f7e3e0;
+  --pin: #c0392b;
+  --app-paper: #f7f5f0; --app-raised: #fdfcf9; --app-sunk: #efebe3; --app-rule: #ddd6c9;
+  --app-ink: #232121; --app-soft: #5e584e; --app-light: #e6e67a; --app-on-ink: #fdfcf9;
+  --app-ok: #2f6b4a; --app-ok-wash: #e4efe7; --app-warn: #8a5a00; --app-warn-wash: #f6ecd6;
+  --frame: #2b2926;
+  --display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "BIZ UDPGothic", sans-serif;
+  --body: "BIZ UDPGothic", "Hiragino Sans", "Meiryo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1d1c1a; --surface: #262523; --sunk: #2f2d2a; --ink: #eeeae2; --ink-soft: #bdb6aa; --rule: #45413b; --mark: #6b6b1f;
+    --visitor: #f0a77c; --visitor-wash: #3a2a20; --staff: #8fd0aa; --staff-wash: #20332a; --admin: #9cc0ea; --admin-wash: #1f2c3d;
+    --warn: #e9c16f; --warn-wash: #3a3020; --danger: #f0928a; --danger-wash: #3d2422; --pin: #ef6b5d; --frame: #0f0e0d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1d1c1a; --surface: #262523; --sunk: #2f2d2a; --ink: #eeeae2; --ink-soft: #bdb6aa; --rule: #45413b; --mark: #6b6b1f;
+  --visitor: #f0a77c; --visitor-wash: #3a2a20; --staff: #8fd0aa; --staff-wash: #20332a; --admin: #9cc0ea; --admin-wash: #1f2c3d;
+  --warn: #e9c16f; --warn-wash: #3a3020; --danger: #f0928a; --danger-wash: #3d2422; --pin: #ef6b5d; --frame: #0f0e0d;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 18px; line-height: 1.9; letter-spacing: .02em;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 900px; margin: 0 auto; padding-block: 32px 80px; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 700; text-wrap: balance; margin: 0; letter-spacing: .04em; }
+h2 { font-size: 30px; line-height: 1.45; }
+h3 { font-size: 23px; line-height: 1.5; margin-top: 12px; }
+h4 { font-size: 19px; line-height: 1.5; }
+p { margin: 0; }
+b, strong { font-weight: 700; }
+.soft { color: var(--ink-soft); }
+.small { font-size: 16px; line-height: 1.8; }
+.mk { background: linear-gradient(transparent 55%, var(--mark) 55%); }
+section { display: flex; flex-direction: column; gap: 20px; }
+.stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+a { color: var(--admin); }
+code, .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: .92em; background: var(--sunk); padding: 1px 6px; border-radius: 5px; }
+:focus-visible { outline: 3px solid var(--admin); outline-offset: 2px; }
+
+/* 表紙 */
+.cover { border: 2px solid var(--ink); border-radius: 20px; background: var(--surface); padding: 36px 28px; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; }
+.cover .eyebrow { font-size: 15px; letter-spacing: .18em; color: var(--ink-soft); }
+.cover h1 { font-size: 38px; line-height: 1.35; margin-top: 6px; }
+.cover .sub { font-size: 20px; margin-top: 10px; }
+.cover .meta { margin-top: 18px; font-size: 15px; color: var(--ink-soft); }
+.cover svg { width: 190px; height: auto; }
+@media (max-width: 640px) { .cover { grid-template-columns: 1fr; } .cover svg { width: 150px; justify-self: center; } .cover h1 { font-size: 30px; } }
+
+/* 目次 */
+.toc { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 22px 24px; }
+.toc ol { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 24px; }
+.toc a { display: flex; gap: 10px; padding: 6px 0; text-decoration: none; color: var(--ink); border-bottom: 1px dashed var(--rule); }
+.toc a span:first-child { font-family: var(--display); color: var(--ink-soft); min-width: 3.4em; }
+
+/* 章見出し */
+.ch-head { display: flex; gap: 16px; align-items: baseline; border-bottom: 3px solid var(--ink); padding-bottom: 10px; flex-wrap: wrap; }
+.ch-no { font-family: var(--display); font-size: 18px; color: var(--surface); background: var(--ink); border-radius: 999px; padding: 2px 14px; white-space: nowrap; }
+.who { font-size: 15px; border-radius: 999px; padding: 2px 12px; border: 1.5px solid currentColor; white-space: nowrap; }
+.who.a { color: var(--admin); } .who.t { color: var(--staff); } .who.w { color: var(--warn); }
+
+/* 囲み */
+.box { border-radius: 14px; padding: 16px 20px; display: flex; gap: 14px; align-items: flex-start; }
+.box .ic { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 18px; }
+.box.tip { background: var(--staff-wash); } .box.tip .ic { background: var(--staff); color: var(--surface); }
+.box.warn { background: var(--warn-wash); } .box.warn .ic { background: var(--warn); color: var(--surface); }
+.box.danger { background: var(--danger-wash); border: 2px solid var(--danger); } .box.danger .ic { background: var(--danger); color: var(--surface); }
+.box.note { background: var(--admin-wash); } .box.note .ic { background: var(--admin); color: var(--surface); }
+.box > div { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+/* たとえ話の吹き出し */
+.say { position: relative; background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 14px 20px; margin-left: 64px; }
+.say::before { content: ""; position: absolute; left: -12px; top: 22px; width: 20px; height: 20px; background: var(--surface); border-left: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg); }
+.say-wrap { display: flex; align-items: flex-start; }
+.say-wrap svg { flex: none; width: 52px; height: 52px; margin-right: -52px; position: relative; top: 6px; }
+
+/* 手順 */
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: st; }
+.steps > li { counter-increment: st; display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: start; }
+.steps > li::before { content: counter(st); width: 44px; height: 44px; border-radius: 50%; background: var(--ink); color: var(--surface); display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 22px; line-height: 1; }
+.steps > li > div { min-width: 0; padding-top: 4px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ボタン名・バッジ */
+.btnname { display: inline-block; font-weight: 700; border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 12px; line-height: 1.7; background: var(--surface); white-space: nowrap; font-size: .95em; }
+.badge { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 13px; font-weight: 700; white-space: nowrap; vertical-align: middle; }
+.badge.free { background: var(--staff-wash); color: var(--staff); }
+.badge.low { background: var(--admin-wash); color: var(--admin); }
+.badge.watch { background: var(--warn-wash); color: var(--warn); }
+.badge.hot { background: var(--danger-wash); color: var(--danger); }
+
+/* 指標カード（KPI） */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.kpi { background: var(--surface); border: 2px solid var(--ink); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+.kpi .lbl { font-size: 14px; color: var(--ink-soft); font-weight: 700; }
+.kpi .val { font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.kpi .sub { font-size: 14px; color: var(--ink-soft); line-height: 1.6; }
+.kpi.accent { border-color: var(--admin); background: var(--admin-wash); }
+.kpi.warn { border-color: var(--warn); background: var(--warn-wash); }
+
+/* パソコンの絵 */
+.pc { border: 9px solid var(--frame); border-top-width: 30px; border-radius: 14px; background: var(--app-paper); color: var(--app-ink); position: relative; padding: 14px 16px; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 12.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 10px; max-width: 100%; }
+.pc::before { content: "● ● ●"; position: absolute; top: -24px; left: 4px; font-size: 10px; color: #8f877a; letter-spacing: 2px; }
+.pc::after { content: attr(data-url); position: absolute; top: -26px; left: 70px; right: 10px; height: 20px; border-radius: 6px; background: #3d3a37; color: #d9d4ca; font-size: 11px; line-height: 20px; padding: 0 10px; overflow: hidden; white-space: nowrap; }
+.pc .pin { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--pin); color: #fff; font-family: var(--display); font-weight: 700; font-size: 14px; display: grid; place-items: center; line-height: 1; box-shadow: 0 0 0 3px #fff; z-index: 3; }
+.pc-grid { display: grid; grid-template-columns: 150px 1fr; gap: 12px; }
+@media (max-width: 600px) { .pc-grid { grid-template-columns: 1fr; } }
+.pc-nav { background: var(--app-raised); border: 1px solid var(--app-rule); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; }
+.pc-nav span { padding: 4px 8px; border-radius: 6px; }
+.pc-nav span.sel { background: var(--admin-wash); color: var(--admin); font-weight: 700; }
+.pc-main { display: flex; flex-direction: column; gap: 10px; }
+.pc-card { background: var(--app-raised); border: 1px solid var(--app-rule); border-radius: 10px; padding: 10px 12px; position: relative; }
+.pc-bar-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.pc-bar-row { display: grid; grid-template-columns: 120px 1fr 64px; gap: 8px; align-items: center; font-size: 11px; }
+.pc-bar { height: 10px; border-radius: 5px; background: var(--app-sunk); overflow: hidden; }
+.pc-bar i { display: block; height: 100%; border-radius: 5px; background: var(--admin); }
+
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.legend li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; }
+.pinno { width: 28px; height: 28px; border-radius: 50%; background: var(--pin); color: #fff; font-family: var(--display); font-weight: 700; font-size: 15px; display: grid; place-items: center; line-height: 1; margin-top: 3px; }
+
+/* 一般の表 */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 14px; background: var(--surface); }
+table.t { border-collapse: collapse; width: 100%; font-size: 15.5px; line-height: 1.7; }
+table.t th, table.t td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); overflow-wrap: anywhere; }
+table.t tr:last-child td { border-bottom: 0; }
+table.t thead th { background: var(--sunk); font-family: var(--display); font-size: 14.5px; }
+table.t td:first-child { font-weight: 700; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* 用語カード */
+.terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+.term { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.term h4 { font-size: 19px; }
+.term .ex { font-size: 15px; color: var(--ink-soft); }
+
+/* 流れ（時間の順） */
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.timeline li { display: grid; grid-template-columns: 145px 24px 1fr; gap: 14px; }
+.timeline .when { font-family: var(--display); font-weight: 700; text-align: right; padding-top: 2px; }
+.timeline .dot { position: relative; }
+.timeline .dot::before { content: ""; position: absolute; left: 10px; top: 0; bottom: 0; width: 4px; background: var(--rule); }
+.timeline .dot::after { content: ""; position: absolute; left: 3px; top: 8px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 4px solid var(--ink); }
+.timeline li.imp .dot::after { border-color: var(--danger); background: var(--danger-wash); }
+.timeline li:last-child .dot::before { bottom: auto; height: 12px; }
+.timeline .what { padding-bottom: 24px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+@media (max-width: 560px) { .timeline li { grid-template-columns: 24px 1fr; } .timeline .when { grid-column: 2; text-align: left; } .timeline .dot { grid-row: 1 / span 2; grid-column: 1; } .timeline .what { grid-column: 2; } }
+
+/* チェックリスト */
+.check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.check li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; }
+.check li::before { content: ""; width: 24px; height: 24px; border: 2.5px solid var(--ink); border-radius: 5px; margin-top: 5px; background: var(--surface); }
+.check-group { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; }
+.check-group h4 { border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
+
+/* 困ったとき */
+.faq { display: flex; flex-direction: column; gap: 12px; }
+.faq details { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; }
+.faq summary { cursor: pointer; padding: 14px 18px; font-weight: 700; font-family: var(--display); font-size: 19px; list-style: none; display: flex; gap: 12px; align-items: baseline; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::before { content: "Q"; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--warn); color: var(--surface); display: grid; place-items: center; font-size: 16px; }
+.faq details[open] summary { border-bottom: 1px dashed var(--rule); }
+.faq .ans { padding: 14px 18px 18px 60px; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 560px) { .faq .ans { padding-left: 18px; } }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.svgfig { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 16px; overflow-x: auto; }
+.svgfig svg { display: block; width: 100%; height: auto; min-width: 560px; }
+.svgfig svg text { font-family: var(--body); }
+.blank { display: inline-block; min-width: 12em; border-bottom: 2px solid var(--ink); }
+footer { font-size: 15px; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: 16px; }
+
+@media print {
+  @page { size: A4; margin: 12mm 12mm 14mm; }
+  body { font-size: 10.5pt; line-height: 1.7; background: #fff; color: #26231f; padding: 0; }
+  .wrap { gap: 20px; padding-block: 0; }
+  section { gap: 14px; }
+  h2 { font-size: 22px; }
+  h3 { font-size: 17px; margin-top: 6px; break-after: avoid; }
+  .cover { padding: 24px 22px; }
+  .cover h1 { font-size: 30px; }
+  .toc a { border: 0; padding: 4px 0; }
+  .ch { break-before: page; }
+  .kpis { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .kpi { padding: 12px 14px; }
+  .kpi .val { font-size: 22px; }
+  .pc { padding: 10px 12px; gap: 8px; }
+  .pc, .box, .term, .kpi, .say-wrap, .faq details, .check-group, .svgfig, .timeline li, table.t tr { break-inside: avoid; }
+  .tbl-wrap { overflow: visible; }
+  table.t { font-size: 9.5pt; line-height: 1.55; table-layout: fixed; }
+  table.t th, table.t td { padding: 7px 8px; }
+  .svgfig { padding: 10px; }
+  .svgfig svg { min-width: 0; }
+  .timeline .what { padding-bottom: 14px; }
+  .legend { gap: 6px; }
+  .steps { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="person" viewBox="0 0 60 80">
+      <circle cx="30" cy="20" r="14" fill="currentColor"/>
+      <path d="M6 78c0-18 10-32 24-32s24 14 24 32z" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<!-- ===================== 表紙 ===================== -->
+<header class="cover">
+  <div>
+    <div class="eyebrow">オープンキャンパス 個別相談 整理券システム</div>
+    <h1>費用項目と管理方法の<br>説明書</h1>
+    <p class="sub">このサービスにかかるお金のしくみ、毎月の確認方法、増えすぎないための管理手順をまとめた説明書です。</p>
+    <p class="meta">2026年11月版 ／ 対象：システムを管理・引き継ぐ大学職員の方・技術担当者</p>
+  </div>
+  <svg viewBox="0 0 200 200" role="img" aria-label="予算メーターと円マークのイラスト">
+    <circle cx="100" cy="100" r="94" fill="var(--sunk)"/>
+    <!-- 帳票カード -->
+    <rect x="38" y="34" width="124" height="132" rx="14" fill="#ffffff" stroke="#26231f" stroke-width="3"/>
+    <rect x="52" y="50" width="56" height="8" rx="4" fill="#ddd5c6"/>
+    <!-- 棒グラフ -->
+    <rect x="54" y="118" width="20" height="28" rx="4" fill="#e3efe7" stroke="#2f6b4a" stroke-width="2"/>
+    <rect x="86" y="96" width="20" height="50" rx="4" fill="#e3ebf5" stroke="#2f5a8a" stroke-width="2"/>
+    <rect x="118" y="76" width="20" height="70" rx="4" fill="#ecec86" stroke="#26231f" stroke-width="2"/>
+    <!-- 予算ライン -->
+    <line x1="48" y1="68" x2="152" y2="68" stroke="#c0392b" stroke-width="2.5" stroke-dasharray="5 4"/>
+    <!-- コイン -->
+    <circle cx="148" cy="144" r="28" fill="#ecec86" stroke="#26231f" stroke-width="3"/>
+    <text x="148" y="155" text-anchor="middle" font-size="30" font-weight="700" fill="#26231f">¥</text>
+  </svg>
+</header>
+
+<!-- ===================== この説明書の使い方 ===================== -->
+<section>
+  <h2>この説明書の読み方</h2>
+  <div class="two">
+    <div class="box note"><span class="ic">1</span><div><b>はじめて読むとき</b><p>第1章〜第3章を読んでください。「毎月いくらかかるのか」「何にお金がかかるのか」が10分ほどでわかります。</p></div></div>
+    <div class="box note"><span class="ic">2</span><div><b>毎月・開催前後の管理</b><p>第5章のスケジュールと、付録のチェックリストを使って確認してください。</p></div></div>
+    <div class="box note"><span class="ic">3</span><div><b>金額を確かめたいとき</b><p>第6章を見ながら、Google Cloud の画面（請求レポート）を開いてください。</p></div></div>
+    <div class="box note"><span class="ic">4</span><div><b>アラートのメールが届いたとき</b><p>あわてずに第7章の「困ったとき」を開き、手順どおりに確認してください。</p></div></div>
+  </div>
+  <p>この説明書は、別冊の「整理券システム 取扱説明書」と対になる資料です。画面の操作ではなく、<b>サービスの維持にかかる費用とその管理</b>に特化して説明しています。</p>
+  <nav class="toc" aria-label="目次">
+    <b style="font-family:var(--display);font-size:20px">目次</b>
+    <ol>
+      <li><a href="#ch1"><span>第1章</span><span>全体像 — どのくらいお金がかかるの？</span></a></li>
+      <li><a href="#ch2"><span>第2章</span><span>先に覚えておく言葉</span></a></li>
+      <li><a href="#ch3"><span>第3章</span><span>費用項目の一覧（どこにいくらかかるか）</span></a></li>
+      <li><a href="#ch4"><span>第4章</span><span>増えすぎないための安全装置</span></a></li>
+      <li><a href="#ch5"><span>第5章</span><span>ふだんの管理スケジュールと役割分担</span></a></li>
+      <li><a href="#ch6"><span>第6章</span><span>請求金額の確認方法</span></a></li>
+      <li><a href="#ch7"><span>第7章</span><span>アラートが届いたとき・困ったとき</span></a></li>
+      <li><a href="#ch8"><span>第8章</span><span>守ってほしいこと・連絡先・技術メモ</span></a></li>
+      <li><a href="#check"><span>付録</span><span>費用管理チェックリスト</span></a></li>
+    </ol>
+  </nav>
+</section>
+
+<!-- ===================== 第1章 ===================== -->
+<section class="ch" id="ch1">
+  <div class="ch-head"><span class="ch-no">第1章</span><h2>全体像 — どのくらいお金がかかるの？</h2></div>
+
+  <h3>ひとことで言うと</h3>
+  <p style="font-size:21px;line-height:1.8">基本料金は0円、電気や水道と同じ<span class="mk"><b>「使った分だけ払うしくみ」</b></span>です。</p>
+  <p>このシステムは Google のクラウドサービス（<b>Firebase / Google Cloud</b>）の上で動いています。毎月決まった高い利用料（月額数万円など）はかかりません。オープンキャンパスがない月は<b>数円〜数十円</b>、開催する月でも<b>数十円〜数百円</b>に収まるように設計されています。</p>
+
+  <div class="kpis">
+    <div class="kpi">
+      <span class="lbl">開催がない月（平時）</span>
+      <span class="val">数円〜数十円</span>
+      <span class="sub">ほぼ無料枠に収まります。東京の保管庫（Storage）などにわずかに発生。</span>
+    </div>
+    <div class="kpi accent">
+      <span class="lbl">開催がある月（想定150組）</span>
+      <span class="val">数十円〜数百円</span>
+      <span class="sub">開催日の読み取り超過分と、当日の高速化（常駐設定）の分が加わります。</span>
+    </div>
+    <div class="kpi warn">
+      <span class="lbl">予算アラートの基準</span>
+      <span class="val">月 1,000円</span>
+      <span class="sub">500円・900円・1,000円でメール通知。設計上の上限目安は開催月で $25。</span>
+    </div>
+  </div>
+
+  <div class="svgfig">
+    <svg viewBox="0 0 820 270" role="img" aria-label="開催しない月・開催する月・予算アラートの金額イメージ比較図">
+      <rect x="0" y="0" width="820" height="270" fill="var(--surface)"/>
+      <text x="28" y="34" font-size="16" font-weight="700" fill="var(--ink)">1か月あたりの費用のイメージ（日本円）</text>
+      <!-- 目盛り線 -->
+      <line x1="70" y1="210" x2="780" y2="210" stroke="var(--ink)" stroke-width="2"/>
+      <line x1="70" y1="150" x2="780" y2="150" stroke="var(--rule)" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="70" y1="90" x2="780" y2="90" stroke="var(--danger)" stroke-width="2" stroke-dasharray="7 5"/>
+      <text x="62" y="215" text-anchor="end" font-size="13" fill="var(--ink-soft)">0円</text>
+      <text x="62" y="155" text-anchor="end" font-size="13" fill="var(--ink-soft)">500円</text>
+      <text x="62" y="95" text-anchor="end" font-size="13" font-weight="700" fill="var(--danger)">1,000円</text>
+      <text x="776" y="82" text-anchor="end" font-size="13" font-weight="700" fill="var(--danger)">▲ 予算アラート 100% ライン（500円・900円でも通知）</text>
+      <!-- 棒1: 平時 -->
+      <rect x="130" y="204" width="120" height="6" rx="3" fill="var(--staff)"/>
+      <text x="190" y="192" text-anchor="middle" font-size="15" font-weight="700" fill="var(--staff)">数円〜数十円</text>
+      <text x="190" y="234" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">開催がない月</text>
+      <text x="190" y="254" text-anchor="middle" font-size="12.5" fill="var(--ink-soft)">ほぼ無料枠内</text>
+      <!-- 棒2: 開催月 -->
+      <rect x="350" y="176" width="120" height="34" rx="5" fill="var(--admin)"/>
+      <text x="410" y="164" text-anchor="middle" font-size="15" font-weight="700" fill="var(--admin)">数十円〜数百円</text>
+      <text x="410" y="234" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">開催がある月</text>
+      <text x="410" y="254" text-anchor="middle" font-size="12.5" fill="var(--ink-soft)">当日のみ常駐オン</text>
+      <!-- 棒3: 戻し忘れ時 -->
+      <rect x="570" y="102" width="120" height="108" rx="5" fill="var(--warn-wash)" stroke="var(--warn)" stroke-width="2" stroke-dasharray="5 3"/>
+      <text x="630" y="148" text-anchor="middle" font-size="14" font-weight="700" fill="var(--warn)">要注意！</text>
+      <text x="630" y="168" text-anchor="middle" font-size="13" fill="var(--warn)">数百〜1,000円超</text>
+      <text x="630" y="234" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">常駐を戻し忘れた月</text>
+      <text x="630" y="254" text-anchor="middle" font-size="12.5" fill="var(--warn)">開催後に必ず戻す</text>
+    </svg>
+  </div>
+
+  <div class="say-wrap">
+    <svg viewBox="0 0 60 80" aria-hidden="true"><use href="#person" style="color:var(--admin)"/></svg>
+    <p class="say"><b>機械を買う必要がないのも大きな節約です。</b>受付用のタブレット・番号表示モニター・紙の発券機は使いません。来場者もスタッフも自分のスマホを使うため、機器の購入費やレンタル費は <b>0円</b> です。</p>
+  </div>
+</section>
+
+<!-- ===================== 第2章 ===================== -->
+<section class="ch" id="ch2">
+  <div class="ch-head"><span class="ch-no">第2章</span><h2>先に覚えておく言葉</h2></div>
+  <p>請求の画面や技術担当者とのやりとりに出てくる言葉です。むずかしく見えますが、意味はシンプルです。</p>
+
+  <div class="terms">
+    <div class="term"><h4>Blaze（ブレイズ）プラン</h4><p>Firebase の「使った分だけ払う」料金プランです。無料プランでは一部の機能（自動処理など）が使えないため、このプランに切り替えてあります。</p></div>
+    <div class="term"><h4>無料枠（むりょうわく）</h4><p>毎日または毎月、決まった回数・容量までは「0円」で使える枠のことです。このシステムは、ほとんどの項目が無料枠の中に収まるよう作られています。</p></div>
+    <div class="term"><h4>請求先アカウント</h4><p>お支払いのクレジットカードを登録してある Google Cloud のお財布です。名前は「<b>Firebase のお支払い</b>」（通貨：日本円 JPY）です。</p></div>
+    <div class="term"><h4>予算アラート</h4><p>1か月の利用額が基準（<b>1,000円</b>）の 50%・90%・100% に近づくと、お知らせメールを送る機能です。<b>システムを止める機能ではありません。</b></p></div>
+    <div class="term"><h4>東京リージョン</h4><p>データを置く場所の指定です（英語表記：<code>asia-northeast1</code>）。大学のルールに合わせて、データはすべて日本国内（東京）に置いています。</p></div>
+    <div class="term"><h4>常駐設定（HOT_INSTANCES）</h4><p>オープンキャンパス当日だけ、発券と呼出のプログラムを「常に待機状態」にして応答を速くするしくみです。<b>開場30分前に自動でオン、閉場後に自動でオフ（0）</b>へ切り替わり、管理画面の上部で現在の状態を確認できます。</p></div>
+  </div>
+</section>
+
+<!-- ===================== 第3章 ===================== -->
+<section class="ch" id="ch3">
+  <div class="ch-head"><span class="ch-no">第3章</span><h2>費用項目の一覧（どこにいくらかかるか）</h2></div>
+  <p>このシステムは、用途の違う複数のクラウド部品を組み合わせて動いています。それぞれの役割と費用の見込みは次のとおりです。</p>
+
+  <h3>クラウドサービスの費用項目（Firebase / Google Cloud）</h3>
+  <div class="tbl-wrap"><table class="t">
+    <colgroup>
+      <col style="width:19%">
+      <col style="width:24%">
+      <col style="width:17%">
+      <col style="width:15%">
+      <col style="width:25%">
+    </colgroup>
+    <thead>
+      <tr><th>項目（サービス名）</th><th>何に使っているか</th><th>無料枠</th><th>費用の見込み</th><th>管理のポイント</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Cloud Functions v2</b><br><span class="small soft">（サーバー処理・19個）</span></td>
+        <td>発券・呼出・ログイン・1分ごとの自動処理（開場・閉場・削除）など、システムの頭脳</td>
+        <td>呼出 200万回/月<br><span class="small soft">（超過 $0.40/100万回）</span></td>
+        <td><span class="badge hot">自動切替</span><br>平時 0円<br>開催日 数十〜数百円</td>
+        <td>開場30分前に自動で常駐オン（1）、閉場後に自動でオフ（0）。終了後に管理画面で「待機オフ（0）」を確認</td>
+      </tr>
+      <tr>
+        <td><b>Cloud Firestore</b><br><span class="small soft">（データベース）</span></td>
+        <td>整理券・待ち列・相談員プロフィール・統計データの保存と、スマホへのリアルタイム配信</td>
+        <td>読取 5万回/日<br>書込 2万回/日<br>削除 2万回/日<br>容量 1 GiB</td>
+        <td><span class="badge watch">開催日のみ確認</span><br>平時 0円<br>開催日 0〜数十円</td>
+        <td>開催日は待ち状況の閲覧で読取が無料枠（5万/日）付近まで増える。バックアップ（PITR）はオフのままにする</td>
+      </tr>
+      <tr>
+        <td><b>Cloud Storage</b><br><span class="small soft">（画像保管庫）</span></td>
+        <td>学生スタッフの似顔絵・プロフィール画像の保存</td>
+        <td><b>東京は無料枠なし</b><br><span class="small soft">（米国のみ無料枠対象）</span></td>
+        <td><span class="badge low">ごく少額</span><br>月 数円</td>
+        <td>数 MB の画像のみで、閉場1時間後に自動削除されるため数円に収まる</td>
+      </tr>
+      <tr>
+        <td><b>Firebase Hosting</b><br><span class="small soft">（画面の配信）</span></td>
+        <td>来場者・スタッフ・管理者が見る Web ページ（HTML/JS/CSS）の配信</td>
+        <td>容量 10 GB<br>転送 360 MB/日</td>
+        <td><span class="badge free">0円（無料枠内）</span></td>
+        <td>画面は軽量（約 260 KB）なため、150組規模では余裕で収まる</td>
+      </tr>
+      <tr>
+        <td><b>Authentication /<br>Identity Platform</b></td>
+        <td>来場者・スタッフの匿名ログイン、管理者のログイン認証</td>
+        <td>月間利用者（MAU）<br>5万人まで無料</td>
+        <td><span class="badge free">0円（無料枠内）</span></td>
+        <td>SMS認証など有料機能は未使用。匿名ユーザーは閉場1時間後に自動削除</td>
+      </tr>
+      <tr>
+        <td><b>Cloud Scheduler</b><br><span class="small soft">（タイマー）</span></td>
+        <td>1分ごとに自動処理（開場・閉場・復帰期限切れ・データ削除）を動かす</td>
+        <td>月 3ジョブまで無料</td>
+        <td><span class="badge free">0円（無料枠内）</span></td>
+        <td>使用ジョブは 1個だけのため無料</td>
+      </tr>
+      <tr>
+        <td><b>Secret Manager</b><br><span class="small soft">（金庫）</span></td>
+        <td>試行制限のハッシュ化に使う秘密鍵（<code>RATE_LIMIT_SECRET</code>）の安全な保管</td>
+        <td>鍵 6個まで無料<br>参照 1万回/月まで無料</td>
+        <td><span class="badge free">0円（無料枠内）</span></td>
+        <td>鍵は 1個のみ。万一参照が1万回を超えても数円程度</td>
+      </tr>
+      <tr>
+        <td><b>Artifact Registry</b><br><span class="small soft">（プログラム倉庫）</span></td>
+        <td>Functions をデプロイするたびに作られる実行イメージの一時保管</td>
+        <td>容量 0.5 GB/月</td>
+        <td><span class="badge free">0円〜数円</span></td>
+        <td><b>1日で自動削除する設定済み</b>。これがないと古い版が溜まって課金が増える</td>
+      </tr>
+      <tr>
+        <td><b>App Check /<br>reCAPTCHA Enterprise</b></td>
+        <td>正規のブラウザ以外からの不正な自動アクセス（ボット等）をブロック</td>
+        <td>月 1万回の判定まで無料</td>
+        <td><span class="badge free">0円（無料枠内）</span></td>
+        <td>開催規模なら余裕で無料枠内。不正アクセス急増時だけ注意</td>
+      </tr>
+      <tr>
+        <td><b>Cloud Logging /<br>Monitoring</b></td>
+        <td>エラー調査や動作確認のためのシステム記録（ログ）</td>
+        <td>ログ 50 GiB/月</td>
+        <td><span class="badge free">0円（無料枠内）</span></td>
+        <td>調査でリクエストログを一時オンにしたら、必ずオフに戻す</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <h3>クラウド以外の関連項目（外部サービス・会場の備品）</h3>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>項目</th><th>用途</th><th>費用の見込み</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td><b>GitHub / GitHub Actions</b></td><td>プログラムの保管と、修正時の自動テスト・自動反映</td><td><span class="badge free">0円（無料枠内）</span></td><td>月 2,000分の無料枠内で運用</td></tr>
+      <tr><td><b>独自ドメイン（任意）</b></td><td><code>oc-ticket-2027.web.app</code> を大学の公式アドレスに変える場合</td><td><span class="badge free">追加 0円</span></td><td>大学が保有するドメインのサブドメインを使えば追加費用なし（SSL証明書も無料）</td></tr>
+      <tr><td><b>会場の印刷物・備品</b></td><td>QRコード入りポスター、入場コード貼り替え用シール、障害時の紙の番号札（100枚）</td><td>大学予算（実費）</td><td>クラウド請求とは別に、事務部門で用意</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>とくに覚えておきたい「費用が増える3つのツボ」</h3>
+  <div class="stack">
+    <div class="box danger">
+      <span class="ic">1</span>
+      <div>
+        <b>常駐設定の自動切替と、終了後の念のための確認</b>
+        <p>発券（<code>issueTicket</code>）と呼出（<code>callNext</code>）の常駐台数は、定期処理（<code>scheduledTick</code>）が<b>開場30分前に自動で <code>1</code>、閉場後に自動で <code>0</code></b> へ切り替えます。戻し忘れを防ぐ仕組みですが、閉場後に管理画面上部の表示が「<b>待機オフ（0）</b>」になっているかを念のため確認すると確実です。</p>
+      </div>
+    </div>
+    <div class="box warn">
+      <span class="ic">2</span>
+      <div>
+        <b>開催日は Firestore の「読み取り回数」が無料枠に近づく</b>
+        <p>整理券を持つ来場者（最大約75人）が待ち状況の画面を開いたままにするため、誰かが発券・呼出をするたびに全員の画面へ更新が届きます（150組×4回×75人 ≒ 約4.5万回）。無料枠（5万回/日）を少し超えることがありますが、超過分は10万回あたり数円〜十数円程度のため、正常な開催であれば心配いりません。</p>
+      </div>
+    </div>
+    <div class="box note">
+      <span class="ic">3</span>
+      <div>
+        <b>東京リージョンの画像保管庫（Storage）は 0円にはならない</b>
+        <p>日本の大学向けにデータを東京（<code>asia-northeast1</code>）へ置いています。東京の Storage は無料枠の対象外のため、画像がわずかでも毎月数円の請求が発生します。「0円ではない＝異常」ではないので安心してください。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 第4章 ===================== -->
+<section class="ch" id="ch4">
+  <div class="ch-head"><span class="ch-no">第4章</span><h2>増えすぎないための安全装置</h2></div>
+  <p>従量課金は「知らないうちに高額請求が来るのでは？」と心配になりがちです。このシステムには、費用が意図せず膨らまないよう、あらかじめ<b>4つの安全装置</b>を組み込んであります。</p>
+
+  <div class="two">
+    <div class="box tip">
+      <span class="ic">1</span>
+      <div>
+        <b>予算アラート（月 1,000円）</b>
+        <p>1か月の利用額が <b>500円（50%）</b>・<b>900円（90%）</b>・<b>1,000円（100%）</b> に達すると、登録メールアドレスへ自動で警告メールが届きます。</p>
+      </div>
+    </div>
+    <div class="box tip">
+      <span class="ic">2</span>
+      <div>
+        <b>同時起動数の上限（最大 10台）</b>
+        <p>Cloud Functions には <code>maxInstances: 10</code> を設定済みです。万一アクセスが集中しても、サーバーが無制限に増え続けて高額課金になることを防ぎます。</p>
+      </div>
+    </div>
+    <div class="box tip">
+      <span class="ic">3</span>
+      <div>
+        <b>データの自動お掃除（3重の削除）</b>
+        <p>閉場1時間後に統計以外のデータ・画像・匿名ユーザーを自動削除します。さらに Firestore の TTL（期限切れ自動削除）と、Artifact Registry の1日削除も有効です。</p>
+      </div>
+    </div>
+    <div class="box tip">
+      <span class="ic">4</span>
+      <div>
+        <b>不正アクセスのブロック</b>
+        <p>入場コード・スタッフコードの連続入力を回数制限（レートリミット）で止め、さらに App Check（reCAPTCHA Enterprise）で不正な外部アクセスを弾く設計です。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="box warn">
+    <span class="ic">!</span>
+    <div>
+      <b>なぜ「上限を超えたら自動停止」にしていないの？</b>
+      <p>Google Cloud では予算を超えたら強制的にサービスを止める仕組みも作れますが、<b>あえて設定していません</b>。オープンキャンパス本番の真っ最中に1,000円を超えただけで整理券システムが突然止まると、会場が大混乱するためです。代わりに、500円・900円の段階で早めにメールで気づき、人間が確認して対応する運用にしています。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 第5章 ===================== -->
+<section class="ch" id="ch5">
+  <div class="ch-head"><span class="ch-no">第5章</span><h2>ふだんの管理スケジュールと役割分担</h2></div>
+  <p>費用管理のために特別な毎日作業は不要です。次の<b>5つのタイミング</b>だけ押さえておけば安全に運用できます。</p>
+
+  <ol class="timeline">
+    <li>
+      <span class="when">毎月（月初）</span><span class="dot"></span>
+      <div class="what">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>先月の請求額を1分で確認する</b> <span class="who a">職員</span></div>
+        <span>請求メールまたは管理画面で先月の合計額を見ます。開催がない月なら数円〜数十円です。不自然に高ければ技術担当者へ連絡します。</span>
+      </div>
+    </li>
+    <li>
+      <span class="when">開催・リハ前日</span><span class="dot"></span>
+      <div class="what">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>開催前日の確認（匿名ログイン上限）</b> <span class="who a">職員 → 技術担当</span></div>
+        <span>技術担当者に「匿名ログイン上限の引き上げ」を依頼します。常駐設定は開場30分前に自動でオンになるため、手動操作は不要です。</span>
+      </div>
+    </li>
+    <li class="imp">
+      <span class="when" style="color:var(--danger)">開催・リハ終了後<br>（当日〜翌日）</span><span class="dot"></span>
+      <div class="what">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="color:var(--danger)">管理画面で常駐オフとDB読み取り数を確認する</b> <span class="who a">職員</span></div>
+        <span>閉場後、管理画面の上部で「発券・呼出の常駐」が自動で<b>待機オフ（0）</b>に戻っていることと、「本日のDB読み取り」を確認します。</span>
+      </div>
+    </li>
+    <li>
+      <span class="when">開催の 3〜5日後</span><span class="dot"></span>
+      <div class="what">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>開催日の実費を確認・記録する</b> <span class="who a">職員・技術担当</span></div>
+        <span>Google Cloud の請求レポートに開催日の利用額が反映されます。Firestore 読み取りや Functions の金額を見て、想定内（数十〜数百円）か確かめます。</span>
+      </div>
+    </li>
+    <li>
+      <span class="when">年度末（年1回）</span><span class="dot"></span>
+      <div class="what">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>カード期限と通知先・引き継ぎを確認する</b> <span class="who a">職員</span></div>
+        <span>登録クレジットカードの有効期限、予算アラートの通知先メールアドレス、運用 Google アカウントの管理者リストを最新に保ちます。</span>
+      </div>
+    </li>
+  </ol>
+
+  <h3>職員と技術担当者の役割分担</h3>
+  <div class="tbl-wrap"><table class="t">
+    <thead><tr><th>管理作業</th><th>職員（事務・管理者）</th><th>技術担当者</th></tr></thead>
+    <tbody>
+      <tr><td>毎月の請求額チェック</td><td><b>主担当</b>（請求メール・明細の確認）</td><td>異常値が出たときの原因調査</td></tr>
+      <tr><td>予算アラート通知の受信</td><td><b>受信する</b>（500円/900円/1,000円）</td><td><b>受信する</b>（すぐ原因を調べられるように）</td></tr>
+      <tr><td>常駐設定のオン／オフ切替</td><td>終了後に管理画面で「待機オフ（0）」を確認</td><td>自動切替（<code>scheduledTick</code>）。異常時のみ対応</td></tr>
+      <tr><td>クレジットカードの更新・経理処理</td><td><b>主担当</b>（カード更新・経費精算）</td><td>画面操作のサポート</td></tr>
+      <tr><td>無料枠や仕様変更の確認</td><td>必要に応じて相談</td><td><b>主担当</b>（Google Cloud 料金改定の確認）</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ===================== 第6章 ===================== -->
+<section class="ch" id="ch6">
+  <div class="ch-head"><span class="ch-no">第6章</span><h2>請求金額の確認方法</h2><span class="who a">職員・技術担当</span></div>
+  <p>毎月の金額や内訳は、Google Cloud の「お支払い（請求レポート）」画面からいつでも見られます。確認用のアカウント（運用用 Google アカウント）でログインして開きます。</p>
+
+  <ol class="steps">
+    <li><div><p>ブラウザで <b>Google Cloud コンソールのお支払い画面</b>（<code>https://console.cloud.google.com/billing</code>）を開きます。</p></div></li>
+    <li><div><p>請求先アカウント「<b>Firebase のお支払い</b>」を選び、左メニューの <span class="btnname">レポート</span> を押します。</p></div></li>
+    <li><div><p>右側の絞り込みで、プロジェクトを <code>oc-ticket-2027</code> に、グループ化を「<b>サービス</b>」にすると、項目ごとの金額が一目でわかります。</p></div></li>
+  </ol>
+
+  <div class="pc" data-url="https://console.cloud.google.com/billing/reports">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--app-rule);padding-bottom:6px">
+      <b>Google Cloud お支払い — Firebase のお支払い</b>
+      <span class="a-chip pill">プロジェクト: oc-ticket-2027</span>
+    </div>
+    <div class="pc-grid">
+      <div class="pc-nav">
+        <span>概要</span>
+        <span class="sel">レポート</span>
+        <span>予算とアラート</span>
+        <span>取引</span>
+        <span>お支払い方法</span>
+      </div>
+      <div class="pc-main">
+        <div class="pc-card">
+          <span class="pin" style="top:-10px;right:12px">1</span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:11px;color:var(--app-soft)">今月の合計（推定）</span>
+            <b style="font-size:20px">¥ 182</b>
+          </div>
+          <div style="font-size:10.5px;color:var(--app-soft)">予算: ¥1,000 / 月（現在 18%）</div>
+        </div>
+        <div class="pc-card">
+          <span class="pin" style="top:-10px;right:12px">2</span>
+          <b style="font-size:11.5px">サービス別の内訳（グループ化：サービス）</b>
+          <div class="pc-bar-wrap">
+            <div class="pc-bar-row"><span>Cloud Run / Functions</span><div class="pc-bar"><i style="width:68%"></i></div><span style="text-align:right">¥ 124</span></div>
+            <div class="pc-bar-row"><span>Cloud Firestore</span><div class="pc-bar"><i style="width:26%"></i></div><span style="text-align:right">¥ 48</span></div>
+            <div class="pc-bar-row"><span>Cloud Storage</span><div class="pc-bar"><i style="width:6%"></i></div><span style="text-align:right">¥ 10</span></div>
+            <div class="pc-bar-row"><span>Hosting / Auth / 他</span><div class="pc-bar"><i style="width:0%"></i></div><span style="text-align:right">¥ 0</span></div>
+          </div>
+        </div>
+        <div class="pc-card" style="background:var(--app-ok-wash);border-color:var(--app-ok)">
+          <span class="pin" style="top:-10px;right:12px">3</span>
+          <span style="font-size:11px;color:var(--app-ok)"><b>経理用の領収書・明細：</b>左メニューの「取引」から毎月の PDF 領収書をダウンロードできます。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="legend">
+    <li><span class="pinno">1</span><div><b>今月の合計</b>：その月の1日から現在までの合計金額（日本円）です。反映には最大1〜2日ほど時差があります。</div></li>
+    <li><span class="pinno">2</span><div><b>サービス別の内訳</b>：どの部品にお金がかかっているかが見えます。開催がない月に <code>Cloud Run / Functions</code> が増え続けていたら、常駐設定（<code>HOT_INSTANCES</code>）の戻し忘れを疑います。</div></li>
+    <li><span class="pinno">3</span><div><b>PDF 領収書の取得</b>：経理提出用の明細が必要なときは、左メニューの <span class="btnname">取引</span>（またはドキュメント）から月ごとの PDF をダウンロードできます。</div></li>
+  </ul>
+</section>
+
+<!-- ===================== 第7章 ===================== -->
+<section class="ch" id="ch7">
+  <div class="ch-head"><span class="ch-no">第7章</span><h2>アラートが届いたとき・困ったとき</h2></div>
+  <p>予算アラートのメールが届いたときや、請求まわりの困りごとが起きたときの対応です。</p>
+
+  <div class="faq">
+    <details open>
+      <summary>「予算の 50%（500円）に達しました」というメールが来た</summary>
+      <div class="ans">
+        <p><b>開催やリハーサルがあった月</b>であれば、一時的な利用増で届くことがあります。まずは落ち着いて第6章の「レポート」で内訳を見てください。</p>
+        <p><b>開催がない月</b>に 500円を超えた場合は異常です。すぐに技術担当者へ連絡し、<code>HOT_INSTANCES</code> が <code>0</code> に戻っているか確認してもらってください。</p>
+      </div>
+    </details>
+    <details open>
+      <summary>「90%（900円）」または「100%（1,000円）」のメールが来た</summary>
+      <div class="ans">
+        <p>システムは自動では止まりません。すぐに技術担当者へ連絡し、次の順で原因を切り分けてもらってください。</p>
+        <ol class="steps">
+          <li><div><p><b>常駐設定の確認</b>：<code>issueTicket</code>・<code>callNext</code> の <code>minInstances</code> が <code>0</code> か確かめる。</p></div></li>
+          <li><div><p><b>サービス別内訳の確認</b>：請求レポートで急増しているサービス（Firestore / Functions / reCAPTCHA 等）を特定する。</p></div></li>
+          <li><div><p><b>開催中の場合</b>：管理画面に「発券が急に増えています」の警告が出ていないか確かめ、入場コードの流出が疑われればコードを作り直す。</p></div></li>
+        </ol>
+      </div>
+    </details>
+    <details open>
+      <summary>開催がない月なのに、毎月数円の請求が来ている</summary>
+      <div class="ans">
+        <p><b>正常です。</b>第3章のとおり、東京リージョンの Cloud Storage には無料枠がないため、わずかな利用でも数円ほど請求が発生します。数十円以内であれば問題ありません。</p>
+      </div>
+    </details>
+    <details open>
+      <summary>クレジットカードの有効期限が近づいた／カードを変更したい</summary>
+      <div class="ans">
+        <p>カードが失効してお支払いが失敗すると、<b>Firebase のプロジェクトが停止し、整理券システムが使えなくなります</b>。Google Cloud お支払い画面の左メニュー「<b>お支払い方法</b>」から、有効期限の1か月前までに新しいカードを登録してください。</p>
+      </div>
+    </details>
+    <details open>
+      <summary>担当職員が異動する・退職する</summary>
+      <div class="ans">
+        <p>次の3点を引き継いでください。</p>
+        <ul>
+          <li>予算アラートの通知先メールアドレスを、新しい担当者に変更（または追加）する</li>
+          <li>運用用 Google アカウントへのアクセス方法と2段階認証の引き継ぎ（技術担当者と連携）</li>
+          <li>クレジットカードの請求先名義・経理処理の手順</li>
+        </ul>
+      </div>
+    </details>
+    <details open>
+      <summary>公開アドレスを大学のドメインに変えたら、費用は増える？</summary>
+      <div class="ans">
+        <p>大学がすでに持っているドメインのサブドメイン（例：<code>oc-ticket.〇〇.ac.jp</code>）を割り当てるだけなら、<b>追加費用は 0円</b> です。通信を暗号化する SSL 証明書も Firebase Hosting が自動で無料発行します。</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ===================== 第8章 ===================== -->
+<section class="ch" id="ch8">
+  <div class="ch-head"><span class="ch-no">第8章</span><h2>守ってほしいこと・連絡先・技術メモ</h2></div>
+
+  <h3>費用管理で必ず守ってほしいこと</h3>
+  <div class="stack">
+    <div class="box danger"><span class="ic">1</span><div><b>開催・リハーサル後は、必ず常駐設定を 0 に戻す</b><p>一番よくある課金増加の原因です。イベント終了のチェックリストに組み込み、職員と技術担当者のダブルチェックで戻し忘れを防ぎます。</p></div></div>
+    <div class="box danger"><span class="ic">2</span><div><b>「予算超過で自動停止」は勝手にオンにしない</b><p>開催当日にシステムが突然止まるリスクを避けるため、自動停止は設定しない方針です。変更する場合は必ず関係者と相談してください。</p></div></div>
+    <div class="box warn"><span class="ic">3</span><div><b>カード番号・パスワードはこの説明書に書かない</b><p>下の控え欄には「担当者名・連絡先・確認場所」だけを書きます。クレジットカード番号やログインパスワードは絶対に書かないでください。</p></div></div>
+    <div class="box warn"><span class="ic">4</span><div><b>このプロジェクト（<code>oc-ticket-2027</code>）に他の用途を混ぜない</b><p>他のイベントや別システムを同じプロジェクトに載せると、整理券システムの費用がわからなくなります。専用プロジェクトのまま使います。</p></div></div>
+  </div>
+
+  <h3>管理情報の控え（書き込んでおいてください）</h3>
+  <div class="box note">
+    <span class="ic">i</span>
+    <div>
+      <b>プロジェクト・請求・連絡先のメモ</b>
+      <p>Firebase / GCP プロジェクト ID：<code>oc-ticket-2027</code>（東京リージョン <code>asia-northeast1</code>）</p>
+      <p>請求先アカウント名：<b>Firebase のお支払い</b>（通貨：JPY ／ 予算アラート：月額 1,000円）</p>
+      <p>経理・請求確認の担当職員：<span class="blank">&nbsp;</span></p>
+      <p>技術担当者（連絡先）：<span class="blank">&nbsp;</span></p>
+      <p>予算アラートの通知先メール：<span class="blank">&nbsp;</span></p>
+    </div>
+  </div>
+
+  <details open class="small" style="background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:12px 18px">
+    <summary style="cursor:pointer;font-weight:700">技術担当者向けのメモ（職員の方は読まなくて大丈夫です）</summary>
+    <ul style="margin:10px 0 0;display:flex;flex-direction:column;gap:6px">
+      <li><b>常駐設定の自動切替</b>：通常は <code>scheduledTick</code> が開場30分前に Cloud Run Admin API v2 で <code>issueticket</code> / <code>callnext</code> の <code>minInstanceCount</code> を <code>1</code>、閉場後に <code>0</code> へ自動切替する（15分ごとに再同期）。イベント外で強制常駐したい場合のみ <code>functions/.env.oc-ticket-2027</code> の <code>HOT_INSTANCES</code> を変更してデプロイする。</li>
+      <li><b>現在の常駐設定・DB読み取りの確認</b>：管理画面（<code>/admin</code>）の上部バーに <code>system/runtimeStatus</code> の値（常駐状態と当日 JST の Firestore 読み取り合計）をリアルタイム表示。CLI では <code>gcloud run services list --project oc-ticket-2027 --region asia-northeast1</code> でも確認可能。</li>
+      <li><b>Firestore 読み書き件数の確認</b>：Cloud Monitoring の <code>firestore.googleapis.com/document/read_count</code>・<code>write_count</code>、または Firebase コンソールの Firestore「使用状況」で確認。PITR（ポイントインタイムリカバリ）は課金とプライバシー要件の両面から無効のまま維持する。</li>
+      <li><b>Artifact Registry クリーンアップ</b>：コンテナイメージは1日で自動削除するポリシーを設定済み。デプロイ回数が増えた月に Storage 課金が増えていないか確認する。</li>
+      <li><b>リクエストログの戻し忘れ防止</b>：調査用に Identity Platform のリクエストログ（<code>monitoring.requestLogging.enabled</code>）を一時有効にした場合は、調査終了後ただちに無効へ戻す。</li>
+      <li><b>App Check 強制</b>：<code>ENFORCE_APP_CHECK=true</code> とコンソール側での Firestore / Storage 強制を適用しておくと、不正アクセスによる読み書き課金膨張を防げる（負荷テスト時のみ一時解除）。</li>
+    </ul>
+  </details>
+</section>
+
+<!-- ===================== 付録 ===================== -->
+<section class="ch" id="check">
+  <div class="ch-head"><span class="ch-no">付録</span><h2>費用管理チェックリスト</h2></div>
+  <p>印刷して、確認が終わったものに ✓ を入れてください。</p>
+
+  <div class="two">
+    <div class="check-group">
+      <h4>毎月（月初 1〜5日ごろ）</h4>
+      <ul class="check">
+        <li><span>先月の請求額（請求メールまたはレポート）を確認した</span></li>
+        <li><span>開催がない月なのに数百円以上になっていないか確認した</span></li>
+        <li><span>予算アラートのメールが届いていないか確認した</span></li>
+        <li><span>（必要な場合）経理用の PDF 領収書を「取引」から保存した</span></li>
+      </ul>
+    </div>
+    <div class="check-group">
+      <h4>開催・リハーサルの前後</h4>
+      <ul class="check">
+        <li><span>【前日】匿名ログイン上限の一時引き上げを依頼した</span></li>
+        <li><span>【当日（開場30分前以降）】管理画面で常駐が「常駐中（オン）」になっていることを確認した</span></li>
+        <li><span><b>【終了後】管理画面で常駐が「待機オフ（0）」に戻っていること・DB読み取り数を確認した</b></span></li>
+        <li><span>【3〜5日後】請求レポートで開催日の実費を確認・記録した</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="check-group">
+    <h4>年度末・担当者交代のとき</h4>
+    <ul class="check">
+      <li><span>登録クレジットカードの有効期限が切れていない（1年以内に切れるなら更新予定を立てた）</span></li>
+      <li><span>予算アラート（月 1,000円）の通知先メールアドレスが最新の担当者になっている</span></li>
+      <li><span>運用用 Google アカウントの管理者権限と2段階認証が引き継がれている</span></li>
+      <li><span>使わなくなった古いテスト用イベントや不要な設定が残っていない</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p>整理券システム 費用項目と管理方法の説明書（2026年11月版）。プロジェクト <code>oc-ticket-2027</code>（asia-northeast1）の構成および 2026年11月27日時点の Firebase / Google Cloud 料金体系・無料枠にもとづいて作成しています。料金改定や構成変更があった場合は更新してください。</p>
+</footer>
+
+</div>
+</body>
+</html>

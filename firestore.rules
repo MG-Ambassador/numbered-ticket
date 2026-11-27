@@ -93,6 +93,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // 定期処理が書き込む運用状態（常駐台数・DB読み取り回数）。管理者のみ閲覧可
+    match /system/runtimeStatus {
+      allow read: if isAdmin();
+    }
+
     // ---- events/{eid} 配下 --------------------------------------------------
 
     match /events/{eid} {
